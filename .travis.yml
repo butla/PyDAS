@@ -1,0 +1,20 @@
+sudo: required
+
+services:
+  - docker
+
+language: python
+python:
+  - 3.4
+
+install:
+  - docker pull redis:2.8.22
+  - npm install -g mountebank
+  - pip install tox
+  - pip install coveralls
+
+script:
+    tox
+
+after_success:
+    coveralls

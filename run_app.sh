@@ -4,8 +4,9 @@ export REDIS_PORT=5123
 
 CONTAINER=`docker create -p $REDIS_PORT:6379 redis:2.8.22`
 docker start $CONTAINER
+# wait for the docker to fully start
 
-gunicorn 'app:get_app()' --bind :$VCAP_APP_PORT --enable-stdio-inheritance --workers `nproc`
+gunicorn 'data_acquisition.app:get_app()' --bind :$VCAP_APP_PORT --enable-stdio-inheritance --workers `nproc`
 
 docker stop $CONTAINER
 docker rm $CONTAINER
