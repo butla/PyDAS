@@ -2,11 +2,9 @@ __author__ = 'butla'
 
 import multiprocessing
 import falcon
-import json
 import os
 import requests
 import logging
-import time
 import redis
 import rq
 
