@@ -22,7 +22,10 @@ class SampleResource:
     @staticmethod
     def on_post(req, resp):
         #body_json = json.loads(req.stream.read().decode('utf-8'))
-        queue.enqueue(requests.post, DOWNLOADER_URL, json={'something': 'yeah, not much'})
+        queue.enqueue(requests.post,
+                      url=DOWNLOADER_URL,
+                      json={'something': 'yeah, not much'},
+                      headers={'Authorization': 'bearer blablabla'})
 
 application = falcon.API()
 application.add_route('/', SampleResource())

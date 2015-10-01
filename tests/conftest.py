@@ -15,6 +15,7 @@ def download_image_if_missing(docker_client):
     redis_images = docker_client.images(name=REDIS_REPO)
     proper_image_exists = bool([image for image in redis_images if REDIS_IMAGE in image['RepoTags']])
     if not proper_image_exists:
+        print("Docker image {}:{} doesn't exist, trying to download... This may take a few minutes.")
         docker_client.pull(repository=REDIS_REPO, tag=REDIS_IMAGE_TAG)
 
 
@@ -22,7 +23,7 @@ def start_redis_container(docker_client):
     redis_port = port_for.select_random()
     host_config = docker_client.create_host_config(port_bindings={
         DEFAULT_REDIS_PORT: redis_port,
-        })
+    })
     container_id = docker_client.create_container(REDIS_IMAGE, host_config=host_config)['Id']
 
     docker_client.start(container_id)

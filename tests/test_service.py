@@ -7,6 +7,20 @@ import requests
 from mountepy import HttpService
 
 
+def _is_part_of(dict_a, dict_b):
+    """
+    Checks whether dict_b is a part of dict_a.
+    That is if dict_b is dict_a, just with some keys removed.
+    :param dict dict_a:
+    :param dict dict_b:
+    :rtype: bool
+    """
+    for key, value in dict_b.items():
+        if key not in dict_a or dict_a[key] != value:
+            return False
+    return True
+
+
 def test_service_start(mountebank, redis_port):
     imposter = mountebank.add_imposter_simple(method='POST')
 
@@ -27,4 +41,8 @@ def test_service_start(mountebank, redis_port):
 
     with das:
         assert requests.post('http://localhost:{}'.format(das.port)).status_code == 200
-        assert json.loads(imposter.wait_for_requests()[0].body) == {'something': 'yeah, not much'}
+
+        request_to_imposter = imposter.wait_for_requests()[0]
+        assert json.loads(request_to_imposter.body) == {'something': 'yeah, not much'}
+        # TODO actually validate JWT token
+        assert _is_part_of(request_to_imposter.headers, {'authorization': 'bearer blablabla'})
