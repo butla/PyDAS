@@ -8,9 +8,13 @@ import logging
 import redis
 import rq
 
+import cf_app_utils.auth.falcon as falcon_cf
+from talons.auth import middleware
+
 # config part
 DOWNLOADER_URL = os.environ['DOWNLOADER_URL']
 REDIS_PORT = int(os.environ['REDIS_PORT'])
+PUBLIC_KEY_URL = os.environ['PUBLIC_KEY_URL']
 
 
 class SampleResource:
@@ -22,12 +26,21 @@ class SampleResource:
     @staticmethod
     def on_post(req, resp):
         #body_json = json.loads(req.stream.read().decode('utf-8'))
+        token = req.auth
         queue.enqueue(requests.post,
                       url=DOWNLOADER_URL,
                       json={'something': 'yeah, not much'},
-                      headers={'Authorization': 'bearer blablabla'})
+                      headers={'Authorization': token})
 
-application = falcon.API()
+
+identifier = falcon_cf.get_identifier(PUBLIC_KEY_URL)
+auth_middleware = middleware.create_middleware(
+    authenticate_with=falcon_cf.get_authenticator(),
+    authorize_with=falcon_cf.get_authorizer(),
+    identify_with=identifier
+)
+
+application = falcon.API(before=auth_middleware)
 application.add_route('/', SampleResource())
 
 queue = rq.Queue(connection=redis.Redis(port=REDIS_PORT))
@@ -49,5 +62,6 @@ def get_app():
     To be used by WSGI server.
     """
     logging.basicConfig(level=logging.INFO)
+    identifier.initialize()
     start_queue_worker()
     return application

@@ -2,9 +2,11 @@ import json
 import os
 import sys
 
+import jwt
 import requests
 
 from mountepy import HttpService
+from .test_consts import RSA_2048_PRIV_KEY, RSA_2048_PUB_KEY
 
 
 def _is_part_of(dict_a, dict_b):
@@ -22,7 +24,9 @@ def _is_part_of(dict_a, dict_b):
 
 
 def test_service_start(mountebank, redis_port):
-    imposter = mountebank.add_imposter_simple(method='POST')
+    downloader_imposter = mountebank.add_imposter_simple(method='POST')
+    uaa_imposter = mountebank.add_imposter_simple(method='GET', response=json.dumps({'value': RSA_2048_PUB_KEY}))
+    # TODO add imposter calling_url field (other url should be management_url)
 
     gunicorn_path = os.path.join(os.path.dirname(sys.executable), 'gunicorn')
     das_command = [
@@ -36,13 +40,20 @@ def test_service_start(mountebank, redis_port):
         das_command,
         env={
             'REDIS_PORT': str(redis_port),
-            'DOWNLOADER_URL': 'http://localhost:{}'.format(imposter.port)
+            'DOWNLOADER_URL': 'http://localhost:{}'.format(downloader_imposter.port),
+            'PUBLIC_KEY_URL': 'http://localhost:{}'.format(uaa_imposter.port),
         })
 
     with das:
-        assert requests.post('http://localhost:{}'.format(das.port)).status_code == 200
+        test_token = jwt.encode(payload={'a': 'b'}, key=RSA_2048_PRIV_KEY, algorithm='RS256').decode()
+        response = requests.post(
+            'http://localhost:{}'.format(das.port),
+            headers={'Authorization': 'bearer {}'.format(test_token)}
+        )
 
-        request_to_imposter = imposter.wait_for_requests()[0]
+        assert response.status_code == 200
+        request_to_imposter = downloader_imposter.wait_for_requests()[0]
         assert json.loads(request_to_imposter.body) == {'something': 'yeah, not much'}
-        # TODO actually validate JWT token
-        assert _is_part_of(request_to_imposter.headers, {'authorization': 'bearer blablabla'})
+        assert _is_part_of(request_to_imposter.headers, {'authorization': 'bearer {}'.format(test_token)})
+
+# TODO add bad signature test

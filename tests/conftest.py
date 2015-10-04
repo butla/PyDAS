@@ -42,6 +42,8 @@ def redis_port(request):
         docker_client.remove_container(container_id, force=True)
     request.addfinalizer(fin)
 
+    # TODO add a clear message about Docker installation, if it isn't found
+    # TODO alsa warn about configuring a proxy in /etc/config/docker
     docker_client = docker.Client(version='auto')
     download_image_if_missing(docker_client)
     container_id, redis_port = start_redis_container(docker_client)
