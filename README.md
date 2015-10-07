@@ -2,6 +2,8 @@ PyDAS
 =====
 Python Data Acquisition Service
 
+**Under heavy development**
+
 ## TODOs:
 1. Add Swagger to service.
 1. Service test should only call the service through a Bravado generated client.

@@ -3,12 +3,8 @@ __author__ = 'butla'
 import jwt
 import requests
 
-from talons.auth.interfaces import Identifies, Identity
-from talons.auth.external import Authenticator
-from talons.auth.external import Authorizer
 
-
-class JwtIdentifier(Identifies):
+class JwtMiddleware:
 
     def __init__(self, uaa_key_url):
         """
@@ -25,33 +21,13 @@ class JwtIdentifier(Identifies):
         print(response.json())
         self._verification_key = response.json()['value']
 
-    def identify(self, request):
-        token = request.auth.split()[1] # skip 'bearer'
+    def process_request(self, req, resp):
+        pass
+
+    def process_resource(self, req, resp, resource):
+        # TODO check if the resource isn't exempted from security checking
+        token = req.auth.split()[1] # skip 'bearer'
         payload = jwt.decode(token, key=self._verification_key)
 
-        request.env[self.IDENTITY_ENV_KEY] = Identity('someone')
-        print('identified')
-        # TODO if admin is in scope, add admin to roles
-        return True
-
-
-def get_identifier(verification_key_url):
-    return JwtIdentifier(verification_key_url)
-
-
-def get_authorizer():
-    return Authorizer(external_authz_callable=_authorize)
-
-
-def get_authenticator():
-    return Authenticator(external_authn_callable=_authenticate)
-
-
-def _authenticate(identity):
-    print('authenticating')
-    return True
-
-
-def _authorize(identity, request_action):
-    print('authorizing')
-    return True
+    def process_response(self, req, resp, resource):
+        pass

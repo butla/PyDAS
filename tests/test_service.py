@@ -6,7 +6,7 @@ import jwt
 import requests
 
 from mountepy import HttpService
-from .test_consts import RSA_2048_PRIV_KEY, RSA_2048_PUB_KEY
+from .consts import RSA_2048_PRIV_KEY, RSA_2048_PUB_KEY
 
 
 def _is_part_of(dict_a, dict_b):
