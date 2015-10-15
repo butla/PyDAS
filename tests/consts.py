@@ -1,4 +1,4 @@
-__author__ = 'butla'
+import jwt
 
 RSA_2048_PRIV_KEY = '''-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAosXzctOonWuZTCZR6KX4K7kepQwacvSh5YRrDDR7QSVWm6+l
@@ -39,3 +39,15 @@ WibOERVGlxPy/w/6ckU23yDM3wjVmD9UpZZS0jx6pe84vHnyVi/kT7ViVnE3mK3a
 CQIDAQAB
 -----END PUBLIC KEY-----
 '''
+
+# token created with:
+# jwt.encode(payload={'a': 'b'}, key=RSA_2048_PRIV_KEY, algorithm='RS256').decode()
+TEST_AUTH_HEADER = 'bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhIjoiYiJ9.Jad5TEL7Q1ql9zUrjtYT2uQ8OjjgIly3EZEIjXLAxVE3nlyqW7rkd862As7YhtULmrPNbrBv-ZjwcdAZztvBcGAYSDFcXh8EyD2R_Ppm4yeT9MXsTkXwo9BNBNTUcLgbQh5_6f2dqXHQA2gwgEOcU6UhMMlQoX8o9IaG5c5A9xTd4Qvks9klbYSFgNjWDQuNSlrE64Qj_QqNVHePN5ObDzkAnnJ94Df6EzW6TqMe_tYhP4Ei0eo34__eWwPslRXXdNejNttpd93JfvFd0De7N3qxz9Z9S-PZIKsPksooaLIQiHl8A2tanePXGmm_15eZPBBhgegm-OOS2uGfTYSoOQ'
+
+TEST_DOWNLOAD_REQUEST = {
+    'orgUUID': 'some-fake-guid',
+    'publicRequest': True,
+    'source': 'http://some-fake-url',
+    'category': 'other',
+    'title': 'My test download',
+}

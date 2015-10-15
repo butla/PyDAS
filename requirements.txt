@@ -1,3 +1,4 @@
+cerberus==0.9.2
 click==5.1
 cryptography==1.0.2
 falcon==0.3.0
