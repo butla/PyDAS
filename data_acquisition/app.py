@@ -6,6 +6,7 @@ This file is used to create the WSGI app that can be embedded in a container.
 import logging
 import multiprocessing
 import os
+from urllib.parse import urljoin
 
 import falcon
 import redis
@@ -13,7 +14,8 @@ import rq
 
 from .cf_app_utils.auth.falcon_middleware import JwtMiddleware
 from .cf_app_utils import configure_logging
-from .resources import AcquisitionResource
+from .consts import ACQUISITION_PATH, DOWNLOADER_PATH
+from .resources import AcquisitionRequestsResource
 
 
 def start_queue_worker(queue):
@@ -41,7 +43,7 @@ def get_app():
     configure_logging(logging.INFO)
 
     # config part
-    downloader_url = os.environ['DOWNLOADER_URL']
+    downloader_url = urljoin(os.environ['DOWNLOADER_URL'], DOWNLOADER_PATH)
     redis_port = int(os.environ['REDIS_PORT'])
     public_key_url = os.environ['PUBLIC_KEY_URL']
 
@@ -53,8 +55,8 @@ def get_app():
 
     application = falcon.API(middleware=auth_middleware)
     application.add_route(
-        '/',
-        AcquisitionResource(requests_store, queue, downloader_url))
+        ACQUISITION_PATH,
+        AcquisitionRequestsResource(requests_store, queue, downloader_url))
 
     start_queue_worker(queue)
     return application

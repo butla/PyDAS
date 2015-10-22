@@ -29,6 +29,5 @@ class _PositiveMessageFilter(logging.Filter):
     Logging filter that allows only positive messages to pass
     """
 
-    @staticmethod
-    def filter(record):
+    def filter(self, record):
         return record.levelno not in (logging.WARNING, logging.ERROR)

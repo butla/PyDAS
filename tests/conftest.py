@@ -1,9 +1,15 @@
-import docker
-import port_for
+import json
+import os
+import sys
 
+import docker
+from mountepy import Mountebank, HttpService, wait_for_port
+import port_for
 import pytest
 
-from mountepy import Mountebank, wait_for_port
+from .consts import RSA_2048_PUB_KEY
+from data_acquisition.consts import DOWNLOADER_PATH
+
 
 REDIS_REPO = 'redis'
 REDIS_IMAGE_TAG = '2.8.22'
@@ -67,3 +73,42 @@ def mountebank(request, mountebank_global):
         mountebank_global.reset()
     request.addfinalizer(fin)
     return mountebank_global
+
+
+@pytest.fixture(scope='function')
+def downloader_imposter(mountebank):
+    return mountebank.add_imposter_simple(path=DOWNLOADER_PATH, method='POST')
+
+
+@pytest.fixture(scope='function')
+def uaa_imposter(mountebank):
+    return mountebank.add_imposter_simple(
+        method='GET',
+        response=json.dumps({'value': RSA_2048_PUB_KEY}))
+
+
+@pytest.fixture(scope='function')
+def das(request, redis_port, downloader_imposter, uaa_imposter):
+    def fin():
+        das_service.stop()
+    request.addfinalizer(fin)
+
+    gunicorn_path = os.path.join(os.path.dirname(sys.executable), 'gunicorn')
+    das_command = [
+        gunicorn_path,
+        'data_acquisition.app:get_app()',
+        '--bind', ':{port}',
+        '--enable-stdio-inheritance',
+        '--pythonpath', ','.join(sys.path)]
+
+    das_service = HttpService(
+        das_command,
+        env={
+            'REDIS_PORT': str(redis_port),
+            'DOWNLOADER_URL': 'http://localhost:{}'.format(downloader_imposter.port),
+            'PUBLIC_KEY_URL': 'http://localhost:{}'.format(uaa_imposter.port),
+            'VCAP_APP_PORT': '{port}'
+        })
+
+    das_service.start()
+    return das_service

@@ -1,64 +1,73 @@
 import json
-import sys
+from urllib.parse import urljoin
 
-import os
 import requests
 import redis
-from mountepy import HttpService
 
-from data_acquisition.consts import DOWNLOAD_CALLBACK_PATH
-from .consts import RSA_2048_PUB_KEY, TEST_AUTH_HEADER, TEST_DOWNLOAD_REQUEST
+from data_acquisition.consts import ACQUISITION_PATH, DOWNLOAD_CALLBACK_PATH
+from .consts import TEST_AUTH_HEADER, TEST_DOWNLOAD_REQUEST
 from .utils import dict_is_part_of
 
 
-# @pytest.fixture(scope='function')
-# def das(request):
-#     def fin():
-#         mountebank_global.reset()
-#     das_service =
-#     request.addfinalizer(fin)
-#     return mountebank_global
+def test_acquisition_request(redis_port, das, downloader_imposter):
+    # TODO change acquisition endpoint
+    response = requests.post(
+        _get_das_url(das.port, ACQUISITION_PATH),
+        json=TEST_DOWNLOAD_REQUEST,
+        headers={'Authorization': TEST_AUTH_HEADER}
+    )
+
+    assert response.status_code == 202
+    req_store_id = '{}:{}'.format(TEST_DOWNLOAD_REQUEST['orgUUID'], response.json()['id'])
+    redis_client = redis.Redis(port=redis_port, db=0)
+    assert redis_client.get(req_store_id)
+
+    request_to_imposter = downloader_imposter.wait_for_requests()[0]
+    assert json.loads(request_to_imposter.body) == {
+        'source': TEST_DOWNLOAD_REQUEST['source'],
+        'callback': 'http://localhost:{}{}'.format(das.port, DOWNLOAD_CALLBACK_PATH)
+    }
+    assert dict_is_part_of(request_to_imposter.headers, {'authorization': TEST_AUTH_HEADER})
 
 
-# TODO add imposter calling_url field (other url should be management_url)
-def test_service_start(mountebank, redis_port):
-    downloader_imposter = mountebank.add_imposter_simple(method='POST')
-    uaa_imposter = mountebank.add_imposter_simple(
-        method='GET',
-        response=json.dumps({'value': RSA_2048_PUB_KEY}))
+# needs to run after test_acquisition_request
+def test_download_callback(redis_port, das, downloader_imposter):
+    # TODO this callback should only update the state
+    stored_req = None
 
-    gunicorn_path = os.path.join(os.path.dirname(sys.executable), 'gunicorn')
-    das_command = [
-        gunicorn_path,
-        'data_acquisition.app:get_app()',
-        '--bind', ':{port}',
-        '--enable-stdio-inheritance',
-        '--pythonpath', ','.join(sys.path)]
+    downloader_callback_req = {
+        'source': 'http://fake-url',
+        'callback': 'http://fake-url',
+        'id': 'fake-id',
+        'state': 'DONE', # can also be FAILED
+        'downloadedBytes': 123,
+        'savedObjectId': 'fake-saved-id',
+        'objectStoreId': 'fake-store-id',
+        'token': TEST_AUTH_HEADER
+    }
 
-    das = HttpService(
-        das_command,
-        env={
-            'REDIS_PORT': str(redis_port),
-            'DOWNLOADER_URL': 'http://localhost:{}'.format(downloader_imposter.port),
-            'PUBLIC_KEY_URL': 'http://localhost:{}'.format(uaa_imposter.port),
-            'VCAP_APP_PORT': '{port}'
-        })
+    # TODO what is sent?
+    response = requests.post(
+        _get_das_url(das.port, DOWNLOAD_CALLBACK_PATH),
+        json=TEST_DOWNLOAD_REQUEST,
+        headers={'Authorization': TEST_AUTH_HEADER}
+    )
 
-    with das:
-        response = requests.post(
-            'http://localhost:{}'.format(das.port),
-            json=TEST_DOWNLOAD_REQUEST,
-            headers={'Authorization': TEST_AUTH_HEADER}
-        )
+    assert response.status_code == 200
+    # req_store_id = '{}:{}'.format(TEST_DOWNLOAD_REQUEST['orgUUID'], response.json()['id'])
+    # redis_client = redis.Redis(port=redis_port, db=0)
+    # assert redis_client.get(req_store_id)
+    #
+    # request_to_imposter = downloader_imposter.wait_for_requests()[0]
+    # assert json.loads(request_to_imposter.body) == {
+    #     'source': TEST_DOWNLOAD_REQUEST['source'],
+    #     'callback': 'http://localhost:{}{}'.format(das.port, DOWNLOAD_CALLBACK_PATH)
+    # }
+    # assert dict_is_part_of(request_to_imposter.headers, {'authorization': TEST_AUTH_HEADER})
 
-        assert response.status_code == 202
-        req_store_id = '{}:{}'.format(TEST_DOWNLOAD_REQUEST['orgUUID'], response.json()['id'])
-        redis_client = redis.Redis(port=redis_port, db=0)
-        assert redis_client.get(req_store_id)
+# TODO test callback from metadata parser
+# TODO test getting all entries for an org
 
-        request_to_imposter = downloader_imposter.wait_for_requests()[0]
-        assert json.loads(request_to_imposter.body) == {
-            'source': TEST_DOWNLOAD_REQUEST['source'],
-            'callback': 'http://localhost:{}{}'.format(das.port, DOWNLOAD_CALLBACK_PATH)
-        }
-        assert dict_is_part_of(request_to_imposter.headers, {'authorization': TEST_AUTH_HEADER})
+def _get_das_url(port, path):
+    das_url = 'http://localhost:{}'.format(port)
+    return urljoin(das_url, path)

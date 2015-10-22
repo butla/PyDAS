@@ -1,13 +1,14 @@
 import json
 import os
 from unittest.mock import MagicMock
+from urllib.parse import urljoin
 
 import requests
 import falcon
 import pytest
 
-from data_acquisition.consts import DOWNLOAD_CALLBACK_PATH
-from data_acquisition.resources import AcquisitionResource
+from data_acquisition.consts import ACQUISITION_PATH, DOWNLOADER_PATH, DOWNLOAD_CALLBACK_PATH
+from data_acquisition.resources import AcquisitionRequestsResource
 from .consts import TEST_DOWNLOAD_REQUEST
 from .utils import dict_is_part_of, simulate_falcon_request
 
@@ -17,16 +18,19 @@ class MockApi(falcon.API):
         super().__init__(*args, **kwargs)
         self.mock_queue = MagicMock()
         self.mock_req_store = MagicMock()
-        self.fake_downloader_url = 'http://fake-downloader-url'
+        self.fake_downloader_url = urljoin('http://fake-downloader-url', DOWNLOADER_PATH)
 
 
 @pytest.fixture(scope='module')
 def falcon_api():
     api = MockApi()
-    api.add_route('/', AcquisitionResource(
-        req_store=api.mock_req_store,
-        queue=api.mock_queue,
-        downloader_url=api.fake_downloader_url))
+    api.add_route(
+        ACQUISITION_PATH,
+        AcquisitionRequestsResource(
+            req_store=api.mock_req_store,
+            queue=api.mock_queue,
+            downloader_url=api.fake_downloader_url)
+    )
     return api
 
 
@@ -37,13 +41,11 @@ def test_post_acquisition_request(falcon_api):
 
     resp_body, headers = simulate_falcon_request(
         api=falcon_api,
-        path='/',
+        path=ACQUISITION_PATH,
         encoding='utf-8',
         method='POST',
         body=json.dumps(TEST_DOWNLOAD_REQUEST),
-        headers=[
-            ('Content-type', 'application/json'),
-            ('Authorization', fake_token)]
+        headers=[('Authorization', fake_token)]
     )
     resp_json = json.loads(resp_body)
 
@@ -63,6 +65,7 @@ def test_post_acquisition_request(falcon_api):
 
     req_store_id = '{}:{}'.format(TEST_DOWNLOAD_REQUEST['orgUUID'], resp_json['id'])
     falcon_api.mock_req_store.set.assert_called_with(req_store_id, resp_body)
+    assert resp_json['status'] == 'VALIDATED'
 
 
 def test_post_acquisition_request_bad_request(falcon_api):
@@ -71,9 +74,15 @@ def test_post_acquisition_request_bad_request(falcon_api):
 
     _, headers = simulate_falcon_request(
         api=falcon_api,
-        path='/',
+        path=ACQUISITION_PATH,
         encoding='utf-8',
         method='POST',
         body=json.dumps(broken_request),
     )
     assert headers.status == falcon.HTTP_400
+
+# TODO test callback from metadata parser
+# TODO test getting one entry for an org
+# TODO test deleting an entry
+# TODO test getting all entries for an org
+# TODO test getting all entries as an admin
