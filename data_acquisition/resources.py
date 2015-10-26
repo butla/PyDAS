@@ -4,7 +4,6 @@ REST resources of the app.
 
 import json
 import logging
-import os
 import requests
 from urllib.parse import urljoin
 import uuid
@@ -12,7 +11,7 @@ import uuid
 from cerberus import Validator
 import falcon
 
-from .consts import DOWNLOADER_PATH, DOWNLOAD_CALLBACK_PATH
+from .consts import DOWNLOAD_CALLBACK_PATH
 
 
 class AcquisitionRequestsResource:
@@ -21,15 +20,15 @@ class AcquisitionRequestsResource:
     Resource governing data acquisition (download) requests.
     """
 
-    def __init__(self, req_store, queue, downloader_url):
+    def __init__(self, req_store, queue, config):
         """
         :param `redis.Redis` req_store: client for download requests' DB
         :param `rq.Queue` queue:
-        :param str downloader_url: URL on which download request should be sent
+        :param `data_acquisition.DasConfig` config: Configuration object for the application.
         """
         self._req_store = req_store
         self._queue = queue
-        self._downloader_url = downloader_url
+        self._config = config
         self._log = logging.getLogger(type(self).__name__)
         self._download_req_validator = Validator(schema={
             'category': {'type': 'string', 'required': True},
@@ -77,20 +76,18 @@ class AcquisitionRequestsResource:
         """
         self._queue.enqueue(
             requests.post,
-            url=self._downloader_url,
+            url=self._config.downloader_url,
             json=self._get_download_req(acquisition_req),
             headers={'Authorization': req_auth})
 
-    @staticmethod
-    def _get_download_req(acquisition_req):
-        # TODO take port and uri from some config which should be created from environment variables
-        app_port = os.environ['VCAP_APP_PORT']
+    def _get_download_req(self, acquisition_req):
         return {
             'source': acquisition_req.source,
-            'callback': 'http://localhost:{}{}'.format(app_port, DOWNLOAD_CALLBACK_PATH)
+            'callback': urljoin(self._config.self_url, DOWNLOAD_CALLBACK_PATH)
         }
 
 
+# TODO maybe there can be a request base with the five attributes and then inheriting ones
 class AcquisitionRequest:
 
     """

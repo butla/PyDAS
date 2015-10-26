@@ -51,3 +51,50 @@ TEST_DOWNLOAD_REQUEST = {
     'category': 'other',
     'title': 'My test download',
 }
+
+TEST_VCAP_SERVICES_TEMPLATE = """
+ {{
+  "redis28": [
+   {{
+    "credentials": {{
+     "hostname": "{redis_host}",
+     "password": {redis_password},
+     "port": "{redis_port}"
+    }},
+    "name": "requests-store"
+   }}
+  ],
+  "user-provided": [
+   {{
+    "credentials": {{
+     "url": "http://{downloader_host}"
+    }},
+    "name": "downloader"
+   }},
+   {{
+    "credentials": {{
+     "url": "http://{metadata_parser_host}"
+    }},
+    "name": "metadataparser"
+   }},
+   {{
+    "credentials": {{
+     "host": "http://{user_management_host}"
+    }},
+    "name": "user-management"
+   }},
+   {{
+    "credentials": {{
+     "tokenKey": "{verification_key_url}"
+    }},
+    "name": "sso"
+   }}
+  ]
+ }}"""
+
+TEST_VCAP_APPLICATION = """
+{
+  "uris": [
+   "das.example.com"
+  ]
+}"""

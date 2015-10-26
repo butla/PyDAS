@@ -5,7 +5,6 @@ Python Data Acquisition Service
 **Under heavy development**
 
 ## TODOs:
-1. Add crude config.
 1. Add callback handling.
 1. Add rest of DAS endpoints.
 1. Add logic for checking authorization with user-management (generate client with Bravado, have middleware that reads json and replaces stream with a new bytes.IO).

@@ -15,11 +15,11 @@ class JwtMiddleware:
     JWT middleware for Falcon.
     """
 
-    def __init__(self, uaa_key_url):
+    def __init__(self, verification_key_url):
         """
-        :param str uaa_key_url: URL under which the public key to verify a token can be found.
+        :param str verification_key_url: URL under which the public key to verify a token can be found.
         """
-        self._key_url = uaa_key_url
+        self._key_url = verification_key_url
         self._verification_key = None
         self._log = logging.getLogger(type(self).__name__)
 

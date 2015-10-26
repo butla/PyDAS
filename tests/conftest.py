@@ -7,8 +7,8 @@ from mountepy import Mountebank, HttpService, wait_for_port
 import port_for
 import pytest
 
-from .consts import RSA_2048_PUB_KEY
-from data_acquisition.consts import DOWNLOADER_PATH
+from .consts import RSA_2048_PUB_KEY, TEST_VCAP_APPLICATION, TEST_VCAP_SERVICES_TEMPLATE
+from data_acquisition.consts import DOWNLOADER_PATH, METADATA_PARSER_PATH, USER_MANAGEMENT_PATH
 
 
 REDIS_REPO = 'redis'
@@ -81,6 +81,17 @@ def downloader_imposter(mountebank):
 
 
 @pytest.fixture(scope='function')
+def metadata_parser_imposter(mountebank):
+    return mountebank.add_imposter_simple(path=METADATA_PARSER_PATH, method='POST')
+
+
+# TODO make this act like the actual User Management
+@pytest.fixture(scope='function')
+def user_management_imposter(mountebank):
+    return mountebank.add_imposter_simple(path=USER_MANAGEMENT_PATH, method='POST')
+
+
+@pytest.fixture(scope='function')
 def uaa_imposter(mountebank):
     return mountebank.add_imposter_simple(
         method='GET',
@@ -88,7 +99,25 @@ def uaa_imposter(mountebank):
 
 
 @pytest.fixture(scope='function')
-def das(request, redis_port, downloader_imposter, uaa_imposter):
+def vcap_services(
+        redis_port,
+        downloader_imposter,
+        metadata_parser_imposter,
+        user_management_imposter,
+        uaa_imposter):
+    return TEST_VCAP_SERVICES_TEMPLATE.format(
+        redis_port=redis_port,
+        redis_password="null",
+        redis_host='localhost',
+        downloader_host='localhost:{}'.format(downloader_imposter.port),
+        metadata_parser_host='localhost:{}'.format(metadata_parser_imposter.port),
+        user_management_host='localhost:{}'.format(user_management_imposter.port),
+        verification_key_url='http://localhost:{}'.format(uaa_imposter.port)
+    )
+
+
+@pytest.fixture(scope='function')
+def das(request, vcap_services):
     def fin():
         das_service.stop()
     request.addfinalizer(fin)
@@ -104,9 +133,8 @@ def das(request, redis_port, downloader_imposter, uaa_imposter):
     das_service = HttpService(
         das_command,
         env={
-            'REDIS_PORT': str(redis_port),
-            'DOWNLOADER_URL': 'http://localhost:{}'.format(downloader_imposter.port),
-            'PUBLIC_KEY_URL': 'http://localhost:{}'.format(uaa_imposter.port),
+            'VCAP_APPLICATION': TEST_VCAP_APPLICATION,
+            'VCAP_SERVICES': vcap_services,
             'VCAP_APP_PORT': '{port}'
         })
 
