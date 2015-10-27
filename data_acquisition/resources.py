@@ -83,7 +83,9 @@ class AcquisitionRequestsResource:
     def _get_download_req(self, acquisition_req):
         return {
             'source': acquisition_req.source,
-            'callback': urljoin(self._config.self_url, DOWNLOAD_CALLBACK_PATH)
+            'callback': urljoin(
+                self._config.self_url,
+                DOWNLOAD_CALLBACK_PATH.format(acquisition_req.id))
         }
 
 
@@ -117,6 +119,11 @@ class AcquisitionRequest:
 
     def __str__(self):
         return json.dumps(self.__dict__)
+
+    @staticmethod
+    def from_bytes(byte_string):
+        req_json = json.loads(byte_string.decode())
+        return AcquisitionRequest(**req_json)
 
     def get_store_key(self):
         return '{}:{}'.format(self.orgUUID, self.id)

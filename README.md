@@ -5,9 +5,13 @@ Python Data Acquisition Service
 **Under heavy development**
 
 ## TODOs:
-1. Add callback handling.
-1. Add rest of DAS endpoints.
+1. Add storage abstraction. Keys: org_uuid:dataset_id. Use hashes for storing objects in redis. To get all use "keys" and "mget". HMSET to set a request HGETALL to read it
+1. Add classes for all requests and translations between them.
+1. Add callback handling for downloader.
 1. Add logic for checking authorization with user-management (generate client with Bravado, have middleware that reads json and replaces stream with a new bytes.IO).
+1. Callback for metadataparser.
+1. Uploader support.
+1. Add rest of DAS endpoints.
 1. Split native and non-native requirements.
 1. Add manifest.yml.
 1. Add bumpversion and versioning.

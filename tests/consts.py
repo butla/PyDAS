@@ -52,6 +52,14 @@ TEST_DOWNLOAD_REQUEST = {
     'title': 'My test download',
 }
 
+TEST_DOWNLOAD_CALLBACK = {
+    'id': 'fake-download-id',
+    'state': 'DONE',
+    'downloadedBytes': 123,
+    'savedObjectId': 'fake-saved-id',
+    'objectStoreId': 'fake-store-id',
+}
+
 TEST_VCAP_SERVICES_TEMPLATE = """
  {{
   "redis28": [
