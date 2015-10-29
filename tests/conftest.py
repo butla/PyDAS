@@ -6,6 +6,7 @@ import docker
 from mountepy import Mountebank, HttpService, wait_for_port
 import port_for
 import pytest
+import redis
 
 from .consts import RSA_2048_PUB_KEY, TEST_VCAP_APPLICATION, TEST_VCAP_SERVICES_TEMPLATE
 from data_acquisition.consts import DOWNLOADER_PATH, METADATA_PARSER_PATH, USER_MANAGEMENT_PATH
@@ -49,11 +50,24 @@ def redis_port(request):
     request.addfinalizer(fin)
 
     # TODO add a clear message about Docker installation, if it isn't found
-    # TODO alsa warn about configuring a proxy in /etc/config/docker
+    # TODO also warn about configuring a proxy in /etc/config/docker
     docker_client = docker.Client(version='auto')
     download_image_if_missing(docker_client)
     container_id, redis_port = start_redis_container(docker_client)
     return redis_port
+
+
+@pytest.fixture(scope='session')
+def redis_client_global(redis_port):
+    return redis.Redis(port=redis_port, db=0)
+
+
+@pytest.fixture(scope='function')
+def redis_client(request, redis_client_global):
+    def fin():
+        redis_client_global.flushdb()
+    request.addfinalizer(fin)
+    return redis_client_global
 
 
 @pytest.fixture(scope='session')

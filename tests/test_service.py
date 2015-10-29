@@ -1,6 +1,7 @@
 import json
 from urllib.parse import urljoin
 
+import pytest
 import requests
 import redis
 
@@ -36,6 +37,7 @@ def test_acquisition_request(redis_port, das, downloader_imposter):
     assert dict_is_part_of(request_to_imposter.headers, {'authorization': TEST_AUTH_HEADER})
 
 
+@pytest.mark.xfail
 def test_download_callback(redis_port, das, metadata_parser_imposter):
     stored_req = AcquisitionRequest(**TEST_DOWNLOAD_REQUEST)
 

@@ -96,15 +96,8 @@ class AcquisitionRequest:
     Data set download request.
     """
 
-    def __init__(
-            self,
-            orgUUID,
-            publicRequest,
-            source,
-            category,
-            title,
-            status='VALIDATED',
-            id=None):
+    def __init__(self, title, orgUUID, publicRequest, source, category,
+                 status='VALIDATED', id=None):
         self.orgUUID = orgUUID
         self.publicRequest = publicRequest
         self.source = source
@@ -126,4 +119,39 @@ class AcquisitionRequest:
         return AcquisitionRequest(**req_json)
 
     def get_store_key(self):
+        """
+        DEPRECATED. Remove this.
+        """
         return '{}:{}'.format(self.orgUUID, self.id)
+
+
+class AcquisitionRequestStore():
+
+    """
+    Abstraction over Redis for storage and retrieval of `AcquisitionRequest` objects.
+    """
+
+    def __init__(self, redis_client):
+        """
+        :param `redis.Redis` redis_client: Redis client.
+        """
+        self._redis = redis_client
+
+    def put(self, acquisition_req):
+        """
+        :param `AcquisitionRequest` acquisition_req:
+        :return:
+        """
+        self._redis.set(
+            '{}:{}'.format(acquisition_req.orgUUID, acquisition_req.id),
+            str(acquisition_req)
+        )
+
+    def get(self, req_id):
+        """
+        :param str req_id: Identifier of the individual request.
+        :return: The request with the give ID.
+        :rtype: AcquisitionRequest
+        """
+        keys = self._redis.keys('*:{}'.format(req_id))
+        return json.loads(self._redis.get(keys[0]).decode())
