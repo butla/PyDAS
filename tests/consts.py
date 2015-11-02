@@ -1,4 +1,5 @@
 import jwt
+from data_acquisition.requests import AcquisitionRequest
 
 RSA_2048_PRIV_KEY = '''-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAosXzctOonWuZTCZR6KX4K7kepQwacvSh5YRrDDR7QSVWm6+l
@@ -45,12 +46,22 @@ CQIDAQAB
 TEST_AUTH_HEADER = 'bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhIjoiYiJ9.Jad5TEL7Q1ql9zUrjtYT2uQ8OjjgIly3EZEIjXLAxVE3nlyqW7rkd862As7YhtULmrPNbrBv-ZjwcdAZztvBcGAYSDFcXh8EyD2R_Ppm4yeT9MXsTkXwo9BNBNTUcLgbQh5_6f2dqXHQA2gwgEOcU6UhMMlQoX8o9IaG5c5A9xTd4Qvks9klbYSFgNjWDQuNSlrE64Qj_QqNVHePN5ObDzkAnnJ94Df6EzW6TqMe_tYhP4Ei0eo34__eWwPslRXXdNejNttpd93JfvFd0De7N3qxz9Z9S-PZIKsPksooaLIQiHl8A2tanePXGmm_15eZPBBhgegm-OOS2uGfTYSoOQ'
 
 TEST_DOWNLOAD_REQUEST = {
-    'orgUUID': 'some-fake-guid',
+    'orgUUID': 'fake-org-uuid',
     'publicRequest': True,
     'source': 'http://some-fake-url',
     'category': 'other',
     'title': 'My test download',
 }
+
+TEST_ACQUISITION_REQ_JSON = dict(TEST_DOWNLOAD_REQUEST)
+TEST_ACQUISITION_REQ_JSON.update({
+    'status': 'VALIDATED',
+    'id': 'fake-id'
+})
+
+TEST_ACQUISITION_REQ = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
+
+TEST_ACQUISITION_REQ_STR = str(TEST_ACQUISITION_REQ)
 
 TEST_DOWNLOAD_CALLBACK = {
     'id': 'fake-download-id',

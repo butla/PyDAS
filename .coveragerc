@@ -1,2 +1,5 @@
 [run]
 omit = data_acquisition/app.py
+
+[report]
+exclude_lines = def __repr__

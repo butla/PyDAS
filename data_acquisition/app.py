@@ -14,6 +14,7 @@ from .cf_app_utils.auth.falcon_middleware import JwtMiddleware
 from .cf_app_utils import configure_logging
 from .config import DasConfig
 from .consts import ACQUISITION_PATH
+from .requests import AcquisitionRequestStore
 from .resources import AcquisitionRequestsResource
 
 
@@ -46,10 +47,10 @@ def get_app():
     auth_middleware = JwtMiddleware(config.verification_key_url)
     auth_middleware.initialize()
 
-    requests_store = redis.Redis(
+    requests_store = AcquisitionRequestStore(redis.Redis(
         port=config.redis_port,
         password=config.redis_password,
-        db=0)
+        db=0))
     queue = rq.Queue(connection=redis.Redis(
         port=config.redis_port,
         password=config.redis_password,

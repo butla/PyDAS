@@ -1,15 +1,18 @@
 import json
 import os
 import sys
+import time
 
 import docker
-from mountepy import Mountebank, HttpService, wait_for_port
+from mountepy import Mountebank, HttpService
 import port_for
 import pytest
 import redis
+import redis.connection
 
 from .consts import RSA_2048_PUB_KEY, TEST_VCAP_APPLICATION, TEST_VCAP_SERVICES_TEMPLATE
 from data_acquisition.consts import DOWNLOADER_PATH, METADATA_PARSER_PATH, USER_MANAGEMENT_PATH
+from data_acquisition.requests import AcquisitionRequestStore
 
 
 REDIS_REPO = 'redis'
@@ -27,6 +30,17 @@ def download_image_if_missing(docker_client):
 
 
 def start_redis_container(docker_client):
+    def wait_for_redis(port, timeout=5.0):
+        start_time = time.perf_counter()
+        redis_client = redis.Redis(port=port, db=0)
+        while True:
+            try:
+                redis_client.ping()
+                break
+            except redis.connection.ConnectionError:
+                time.sleep(0.01)
+                if time.perf_counter() - start_time >= timeout:
+                    raise TimeoutError('Waited too long for Redis to start accepting connections.')
     redis_port = port_for.select_random()
     host_config = docker_client.create_host_config(port_bindings={
         DEFAULT_REDIS_PORT: redis_port,
@@ -34,7 +48,7 @@ def start_redis_container(docker_client):
     container_id = docker_client.create_container(REDIS_IMAGE, host_config=host_config)['Id']
 
     docker_client.start(container_id)
-    wait_for_port(redis_port)
+    wait_for_redis(redis_port)
     return container_id, redis_port
 
 
@@ -58,20 +72,25 @@ def redis_port(request):
 
 
 @pytest.fixture(scope='session')
-def redis_client_global(redis_port):
+def redis_client_session(redis_port):
     return redis.Redis(port=redis_port, db=0)
 
 
 @pytest.fixture(scope='function')
-def redis_client(request, redis_client_global):
+def redis_client(request, redis_client_session):
     def fin():
-        redis_client_global.flushdb()
+        redis_client_session.flushdb()
     request.addfinalizer(fin)
-    return redis_client_global
+    return redis_client_session
+
+
+@pytest.fixture(scope='function')
+def requests_store(redis_client):
+    return AcquisitionRequestStore(redis_client)
 
 
 @pytest.fixture(scope='session')
-def mountebank_global(request):
+def mountebank_session(request):
     def fin():
         mb.stop()
     request.addfinalizer(fin)
@@ -82,11 +101,11 @@ def mountebank_global(request):
 
 
 @pytest.fixture(scope='function')
-def mountebank(request, mountebank_global):
+def mountebank(request, mountebank_session):
     def fin():
-        mountebank_global.reset()
+        mountebank_session.reset()
     request.addfinalizer(fin)
-    return mountebank_global
+    return mountebank_session
 
 
 @pytest.fixture(scope='function')

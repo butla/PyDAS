@@ -10,7 +10,7 @@ from data_acquisition import DasConfig
 from data_acquisition.consts import (ACQUISITION_PATH, DOWNLOADER_PATH, DOWNLOAD_CALLBACK_PATH,
                                      METADATA_PARSER_PATH, USER_MANAGEMENT_PATH,
                                      METADATA_PARSER_CALLBACK_PATH)
-from data_acquisition.resources import AcquisitionRequestsResource
+from data_acquisition.resources import AcquisitionRequestsResource, AcquisitionRequest
 from .consts import TEST_DOWNLOAD_REQUEST, TEST_DOWNLOAD_CALLBACK
 from .utils import dict_is_part_of, simulate_falcon_request
 
@@ -77,8 +77,7 @@ def test_acquisition_request(falcon_api, das_config):
         headers={'Authorization': fake_token}
     )
 
-    req_store_id = '{}:{}'.format(TEST_DOWNLOAD_REQUEST['orgUUID'], resp_json['id'])
-    falcon_api.mock_req_store.set.assert_called_with(req_store_id, resp_body)
+    falcon_api.mock_req_store.put.assert_called_with(AcquisitionRequest(**resp_json))
     assert resp_json['status'] == 'VALIDATED'
 
 

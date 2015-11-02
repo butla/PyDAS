@@ -7,13 +7,12 @@ import redis
 
 from data_acquisition.consts import (ACQUISITION_PATH, DOWNLOAD_CALLBACK_PATH,
                                      METADATA_PARSER_CALLBACK_PATH)
-from data_acquisition.resources import AcquisitionRequest
+from data_acquisition.requests import AcquisitionRequest
 from .consts import TEST_AUTH_HEADER, TEST_DOWNLOAD_REQUEST
 from .utils import dict_is_part_of
 
 
-def test_acquisition_request(redis_port, das, downloader_imposter):
-    # TODO change acquisition endpoint
+def test_acquisition_request(requests_store, das, downloader_imposter):
     response = requests.post(
         _get_das_url(das.port, ACQUISITION_PATH),
         json=TEST_DOWNLOAD_REQUEST,
@@ -21,13 +20,10 @@ def test_acquisition_request(redis_port, das, downloader_imposter):
     )
 
     assert response.status_code == 202
-    req_store_id = '{}:{}'.format(TEST_DOWNLOAD_REQUEST['orgUUID'], response.json()['id'])
-    redis_client = redis.Redis(port=redis_port, db=0)
-    stored_req = AcquisitionRequest.from_bytes(redis_client.get(req_store_id))
+    stored_req = requests_store.get(response.json()['id'])
     assert stored_req.status == 'VALIDATED'
 
     request_to_imposter = downloader_imposter.wait_for_requests()[0]
-    # TODO the id needs to be at the end
     assert json.loads(request_to_imposter.body) == {
         'source': TEST_DOWNLOAD_REQUEST['source'],
         'callback': urljoin(

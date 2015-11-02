@@ -3,21 +3,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from data_acquisition.resources import AcquisitionRequestStore, AcquisitionRequest
-
-TEST_ACQUISITION_REQ_JSON = {
-    'title': 'My test download',
-    'orgUUID': 'fake-org-uuid',
-    'publicRequest': True,
-    'source': 'http://some-fake-url',
-    'category': 'science',
-    'status': 'VALIDATED',
-    'id': 'fake-id'
-}
-
-TEST_ACQUISITION_REQ = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
-
-TEST_ACQUISITION_REQ_STR = str(TEST_ACQUISITION_REQ)
+from data_acquisition.requests import AcquisitionRequest, AcquisitionRequestStore
+from .consts import TEST_ACQUISITION_REQ, TEST_ACQUISITION_REQ_STR, TEST_ACQUISITION_REQ_JSON
 
 
 @pytest.fixture
@@ -43,11 +30,6 @@ def test_put(req_store, redis_mock):
 
 
 def test_get(req_store_real, redis_client):
-    redis_client.put(
-        'fake-org-uuid:fake-id',
-        TEST_ACQUISITION_REQ_STR
-    )
-
+    redis_client.set('fake-org-uuid:fake-id', TEST_ACQUISITION_REQ_STR)
     acquisition_req = req_store_real.get('fake-id')
-
     assert TEST_ACQUISITION_REQ_STR == str(acquisition_req)
