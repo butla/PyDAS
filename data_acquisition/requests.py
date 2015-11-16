@@ -53,6 +53,7 @@ class AcquisitionRequest:
         self.source = source
         self.category = category
         self.title = title
+        # can be VALIDATED, DOWNLOADED, FINISHED, ERROR
         self.status = status
         # TODO maybe a creation time is needed
         if id:

@@ -5,6 +5,8 @@ This file is used to create the WSGI app that can be embedded in a container.
 
 import logging
 import multiprocessing
+import signal
+import sys
 
 import falcon
 import redis
@@ -13,9 +15,9 @@ import rq
 from .cf_app_utils.auth.falcon_middleware import JwtMiddleware
 from .cf_app_utils import configure_logging
 from .config import DasConfig
-from .consts import ACQUISITION_PATH
+from .consts import ACQUISITION_PATH, DOWNLOAD_CALLBACK_PATH
 from .requests import AcquisitionRequestStore
-from .resources import AcquisitionRequestsResource
+from .resources import AcquisitionRequestsResource, DownloadCallbackResource
 
 
 def start_queue_worker(queue):
@@ -31,8 +33,16 @@ def start_queue_worker(queue):
         with rq.Connection(queue.connection):
             rq.Worker(queue).work()
 
+    def terminate_handler(signo, stack_frame):
+        """
+        Stops Redis queue worker process when this process receives the terminate signal.
+        """
+        queue_worker.terminate()
+        sys.exit(0)
+
     logging.info('starting queue worker process')
     queue_worker = multiprocessing.Process(target=do_work)
+    signal.signal(signal.SIGTERM, terminate_handler)
     queue_worker.start()
 
 
@@ -60,6 +70,9 @@ def get_app():
     application.add_route(
         ACQUISITION_PATH,
         AcquisitionRequestsResource(requests_store, queue, config))
+    application.add_route(
+        DOWNLOAD_CALLBACK_PATH,
+        DownloadCallbackResource(requests_store, queue, config))
 
     start_queue_worker(queue)
     return application

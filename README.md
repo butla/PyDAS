@@ -5,8 +5,7 @@ Python Data Acquisition Service
 **Under heavy development**
 
 ## TODOs:
-1. Add callback handling for downloader.
-1. Add classes for all requests and translations between them.
+1. Make request classes named tuples? / Add classes for all requests and translations between them.
 1. Add logic for checking authorization with user-management (generate client with Bravado, have middleware that reads json and replaces stream with a new bytes.IO).
 1. Callback for metadataparser.
 1. Uploader support.

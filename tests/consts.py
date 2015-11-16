@@ -64,11 +64,11 @@ TEST_ACQUISITION_REQ = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
 TEST_ACQUISITION_REQ_STR = str(TEST_ACQUISITION_REQ)
 
 TEST_DOWNLOAD_CALLBACK = {
-    'id': 'fake-download-id',
+    'id': TEST_ACQUISITION_REQ_JSON['id'],
     'state': 'DONE',
-    'downloadedBytes': 123,
+    # 'downloadedBytes': 123,
     'savedObjectId': 'fake-saved-id',
-    'objectStoreId': 'fake-store-id',
+    'objectStoreId': 'hdfs://some-fake-hdfs-path',
 }
 
 TEST_VCAP_SERVICES_TEMPLATE = """
