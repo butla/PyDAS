@@ -5,9 +5,11 @@ from falcon import Request
 from falcon import Response
 from falcon.testing.helpers import create_environ
 import pytest
+import responses
 
+from .consts import RSA_2048_PUB_KEY, TEST_AUTH_HEADER, TEST_ADMIN_AUTH_HEADER, TEST_ORG_UUID
 from data_acquisition.cf_app_utils.auth.falcon_middleware import JwtMiddleware
-from .consts import RSA_2048_PUB_KEY, TEST_AUTH_HEADER
+from data_acquisition.cf_app_utils.auth import *
 
 
 def test_oauth_middleware_init_ok(monkeypatch):
@@ -73,3 +75,43 @@ def test_oauth_middleware_request_auth_invalid(headers):
             Request(create_environ(headers=headers)),
             None,
             None)
+
+
+FAKE_PERMISSION_SERVICE_URL = 'http://fake-address'
+FAKE_PERMISSION_URL = FAKE_PERMISSION_SERVICE_URL + USER_MANAGEMENT_PATH
+
+@pytest.fixture(scope='function')
+def user_org_access_checker():
+    return UserOrgAccessChecker(FAKE_PERMISSION_SERVICE_URL, RSA_2048_PUB_KEY)
+
+
+def _set_positive_permission_service_mock():
+    responses.add(responses.GET, FAKE_PERMISSION_URL, status=200, json=[
+        {'organization': {'metadata': {'guid': TEST_ORG_UUID}}}
+    ])
+
+
+@responses.activate
+def test_user_in_org_with_access(user_org_access_checker):
+    _set_positive_permission_service_mock()
+    user_org_access_checker.validate_access(TEST_AUTH_HEADER, [TEST_ORG_UUID])
+
+
+@responses.activate
+def test_user_in_org_without_access(user_org_access_checker):
+    _set_positive_permission_service_mock()
+    with pytest.raises(NoOrgAccessError):
+        user_org_access_checker.validate_access(TEST_AUTH_HEADER, ['not-the-users-org'])
+
+
+def test_admin_user_in_org(user_org_access_checker):
+    user_org_access_checker.validate_access(
+        TEST_ADMIN_AUTH_HEADER,
+        [TEST_ORG_UUID, 'some-other-org'])
+
+
+@responses.activate
+def test_user_in_org_no_service(user_org_access_checker):
+    responses.add(responses.GET, FAKE_PERMISSION_URL, status=404)
+    with pytest.raises(PermissionServiceError):
+        user_org_access_checker.validate_access(TEST_AUTH_HEADER, [TEST_ORG_UUID])

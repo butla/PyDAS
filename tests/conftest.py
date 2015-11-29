@@ -10,8 +10,9 @@ import pytest
 import redis
 import redis.connection
 
-from .consts import RSA_2048_PUB_KEY, TEST_VCAP_APPLICATION, TEST_VCAP_SERVICES_TEMPLATE
-from data_acquisition.consts import DOWNLOADER_PATH, METADATA_PARSER_PATH, USER_MANAGEMENT_PATH
+from .consts import (RSA_2048_PUB_KEY, TEST_VCAP_APPLICATION, TEST_VCAP_SERVICES_TEMPLATE,
+                     TEST_AUTH_HEADER, TEST_ORG_UUID)
+from data_acquisition.consts import DOWNLOADER_PATH, METADATA_PARSER_PATH
 from data_acquisition.requests import AcquisitionRequestStore
 
 
@@ -121,7 +122,45 @@ def metadata_parser_imposter(mountebank):
 # TODO make this act like the actual User Management
 @pytest.fixture(scope='function')
 def user_management_imposter(mountebank):
-    return mountebank.add_imposter_simple(path=USER_MANAGEMENT_PATH, method='POST')
+    imposter_cfg = {
+        'port': port_for.select_random(),
+        'protocol': 'http',
+        'stubs': [
+            {
+                'responses': [
+                    {
+                        'is': {
+                            'statusCode': 200,
+                            'headers': {
+                                'Content-Type': 'application/json'
+                            },
+                            'body': json.dumps([
+                                {'organization': {'metadata': {'guid': TEST_ORG_UUID}}}
+                            ]),
+                        }
+                    }
+                ],
+                'predicates': [
+                    {
+                        'and': [
+                            {
+                                'equals': {
+                                    'path': '/rest/orgs/permissions',
+                                    'method': 'GET',
+                                },
+                                'contains': {
+                                    'headers': {
+                                        'Authorization': TEST_AUTH_HEADER
+                                    }
+                                }
+                            },
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+    return mountebank.add_imposter(imposter_cfg)
 
 
 @pytest.fixture(scope='function')

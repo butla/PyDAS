@@ -9,4 +9,3 @@ DOWNLOADER_PATH = '/rest/downloader/requests'
 METADATA_PARSER_PATH = '/rest/metadata'
 # TODO only an enum is sent there
 METADATA_PARSER_CALLBACK_PATH = CALLBACK_PATH + '/metadata/{req_id}'
-USER_MANAGEMENT_PATH = '/rest/orgs/permissions'

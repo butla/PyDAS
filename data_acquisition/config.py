@@ -6,7 +6,8 @@ import json
 import os
 from urllib.parse import urljoin
 
-from .consts import DOWNLOADER_PATH, METADATA_PARSER_PATH, USER_MANAGEMENT_PATH
+from .cf_app_utils.auth import USER_MANAGEMENT_PATH
+from .consts import DOWNLOADER_PATH, METADATA_PARSER_PATH
 
 
 # TODO most of this class should be extracted as a base class for other configuration objects

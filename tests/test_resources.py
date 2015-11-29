@@ -7,16 +7,15 @@ import falcon
 import pytest
 
 from data_acquisition import DasConfig
+from data_acquisition.cf_app_utils.auth import USER_MANAGEMENT_PATH
 from data_acquisition.consts import (ACQUISITION_PATH, DOWNLOADER_PATH, DOWNLOAD_CALLBACK_PATH,
-                                     METADATA_PARSER_PATH, USER_MANAGEMENT_PATH)
+                                     METADATA_PARSER_PATH)
 from data_acquisition.resources import (AcquisitionRequestsResource, DownloadCallbackResource,
                                         AcquisitionRequest, get_download_callback_url,
                                         get_metadata_callback_url)
 from .consts import (TEST_DOWNLOAD_REQUEST, TEST_DOWNLOAD_CALLBACK, TEST_ACQUISITION_REQ,
-                     TEST_ACQUISITION_REQ_JSON)
+                     TEST_ACQUISITION_REQ_JSON, TEST_AUTH_HEADER)
 from .utils import dict_is_part_of, simulate_falcon_request
-
-FAKE_TOKEN = 'bearer some+base64+bytes'
 
 
 class MockApi(falcon.API):
@@ -78,7 +77,7 @@ def test_acquisition_request(falcon_api, das_config):
         encoding='utf-8',
         method='POST',
         body=json.dumps(TEST_DOWNLOAD_REQUEST),
-        headers=[('Authorization', FAKE_TOKEN)]
+        headers=[('Authorization', TEST_AUTH_HEADER)]
     )
     resp_json = json.loads(resp_body)
 
@@ -93,7 +92,7 @@ def test_acquisition_request(falcon_api, das_config):
         requests.post,
         url=das_config.downloader_url,
         json=proper_downloader_req,
-        headers={'Authorization': FAKE_TOKEN}
+        headers={'Authorization': TEST_AUTH_HEADER}
     )
 
     falcon_api.mock_req_store.put.assert_called_with(AcquisitionRequest(**resp_json))
@@ -133,7 +132,7 @@ def test_downloader_callback_ok(falcon_api, das_config):
         encoding='utf-8',
         method='POST',
         body=json.dumps(TEST_DOWNLOAD_CALLBACK),
-        headers=[('Authorization', FAKE_TOKEN)]
+        headers=[('Authorization', TEST_AUTH_HEADER)]
     )
 
     assert headers.status == falcon.HTTP_200
@@ -142,7 +141,7 @@ def test_downloader_callback_ok(falcon_api, das_config):
         requests.post,
         url=das_config.metadata_parser_url,
         json=proper_metadata_req,
-        headers={'Authorization': FAKE_TOKEN}
+        headers={'Authorization': TEST_AUTH_HEADER}
     )
 
     falcon_api.mock_req_store.get.assert_called_with(TEST_DOWNLOAD_CALLBACK['id'])
@@ -162,7 +161,7 @@ def test_downloader_callback_failed_request(falcon_api):
         encoding='utf-8',
         method='POST',
         body=json.dumps(failed_callback_req),
-        headers=[('Authorization', FAKE_TOKEN)]
+        headers=[('Authorization', TEST_AUTH_HEADER)]
     )
 
     assert headers.status == falcon.HTTP_200
@@ -179,7 +178,7 @@ def test_downloader_callback_bad_request(falcon_api):
         encoding='utf-8',
         method='POST',
         body=json.dumps({'some': 'nonsense'}),
-        headers=[('Authorization', FAKE_TOKEN)]
+        headers=[('Authorization', TEST_AUTH_HEADER)]
     )
     assert headers.status == falcon.HTTP_400
 
