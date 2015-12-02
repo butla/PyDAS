@@ -5,7 +5,6 @@ Python Data Acquisition Service
 **Under heavy development**
 
 ## TODO (necessary):
-1. Add checking organization access to resources.
 1. Callback for metadataparser.
 1. Uploader support.
 1. Check if Redis entries have the same properties as in the old DAS.

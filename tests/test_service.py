@@ -59,3 +59,4 @@ def test_download_callback(requests_store, das, metadata_parser_imposter):
 # TODO test redis store
 # TODO test callback from metadata parser
 # TODO test getting all entries for an org
+# TODO test that middleware is working (invalid token)

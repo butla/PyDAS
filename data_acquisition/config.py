@@ -48,8 +48,10 @@ class DasConfig:
     @classmethod
     def get_config(cls):
         """
-        :return: The configuration object for the application.
-        :rtype: DasConfig
+        Gives the configuration object for the service.
+        The configuration is gathered once per application run.
+        :return: The configuration object for the application. It mustn't be modified.
+        :rtype: `DasConfig`
         """
         if not cls._conf_obj:
             cls._conf_obj = cls._gather_configuration()
@@ -107,11 +109,11 @@ class DasConfig:
         for path_part in service_conf_path:
             try:
                 service_value = service_value[path_part]
-            except KeyError:
+            except KeyError as e:
                 raise BadConfigurationPathError(
                     'Configuration value {} in service {} not found.'.format(
                         path_parts,
-                        service_conf_path))
+                        service_conf_path)) from e
         return service_value
 
 

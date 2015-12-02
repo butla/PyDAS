@@ -1,5 +1,5 @@
-import jwt
 from data_acquisition.requests import AcquisitionRequest
+from data_acquisition.cf_app_utils.auth import USER_MANAGEMENT_PATH
 
 RSA_2048_PRIV_KEY = '''-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAosXzctOonWuZTCZR6KX4K7kepQwacvSh5YRrDDR7QSVWm6+l
@@ -49,6 +49,9 @@ TEST_AUTH_HEADER = 'bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzY29wZSI6WyJu
 TEST_ADMIN_AUTH_HEADER = 'bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzY29wZSI6WyJjb25zb2xlLmFkbWluIl0sImEiOiJiIn0.I4pekwOqNH6lGo656LZiM75ogUIalI_pUj-GbWvtgcp_dlyv47FGpU9zdO3iwaCEU0QXdf-Eoy9aC7wE6sstp-5k739vfCgZ_xp1J9yJp0Mnm7QiNNN4I4Zs5C34g341shJozmrS9LbPPZtVsI2cRG31oJ-TlIavYj7ZAqfLgdAMlIm73coIkIAusKdgtPZT-FxDeWMs5-BlMgTcpM2mGOWba1PDHagB0c_GbH40vhapcnJdpDNdufSLcp_oVAveu8__cVSHehDRx_GDtK8A656auc4R8XRZq_oL24h8hqEIV155plOW3CAh4dlpXnVl4E1HxO2cEixHCSyBH358_g'
 
 TEST_ORG_UUID = 'fake-org-uuid'
+
+FAKE_PERMISSION_SERVICE_URL = 'http://fake-user-management'
+FAKE_PERMISSION_URL = FAKE_PERMISSION_SERVICE_URL + USER_MANAGEMENT_PATH
 
 TEST_DOWNLOAD_REQUEST = {
     'orgUUID': TEST_ORG_UUID,

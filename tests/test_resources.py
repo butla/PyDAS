@@ -2,6 +2,7 @@ import json
 from unittest.mock import MagicMock
 from urllib.parse import urljoin
 
+import responses
 import requests
 import falcon
 import pytest
@@ -14,7 +15,8 @@ from data_acquisition.resources import (AcquisitionRequestsResource, DownloadCal
                                         AcquisitionRequest, get_download_callback_url,
                                         get_metadata_callback_url)
 from .consts import (TEST_DOWNLOAD_REQUEST, TEST_DOWNLOAD_CALLBACK, TEST_ACQUISITION_REQ,
-                     TEST_ACQUISITION_REQ_JSON, TEST_AUTH_HEADER)
+                     TEST_ACQUISITION_REQ_JSON, TEST_AUTH_HEADER, TEST_ORG_UUID,
+                     FAKE_PERMISSION_URL, FAKE_PERMISSION_SERVICE_URL)
 from .utils import dict_is_part_of, simulate_falcon_request
 
 
@@ -35,7 +37,7 @@ def das_config():
         redis_password='secret-password',
         downloader_url=urljoin('https://fake-downloader-url', DOWNLOADER_PATH),
         metadata_parser_url=urljoin('https://fake-metadata-url', METADATA_PARSER_PATH),
-        user_management_url=urljoin('https://fake-userman-url', USER_MANAGEMENT_PATH),
+        user_management_url=urljoin(FAKE_PERMISSION_SERVICE_URL, USER_MANAGEMENT_PATH),
         verification_key_url='http://fake-verification-key-url'
     )
 
@@ -70,7 +72,12 @@ def test_get_metadata_callback_url():
     assert callback_url == 'https://some-test-das-url/v1/das/callback/metadata/some-test-id'
 
 
+@responses.activate
 def test_acquisition_request(falcon_api, das_config):
+    responses.add(responses.GET, FAKE_PERMISSION_URL, status=200, json=[
+        {'organization': {'metadata': {'guid': TEST_ORG_UUID}}}
+    ])
+
     resp_body, headers = simulate_falcon_request(
         api=falcon_api,
         path=ACQUISITION_PATH,

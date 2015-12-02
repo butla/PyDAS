@@ -12,7 +12,7 @@ import falcon
 import redis
 import rq
 
-from .cf_app_utils.auth.falcon_middleware import JwtMiddleware
+from .cf_app_utils.auth.falcon import JwtMiddleware
 from .cf_app_utils import configure_logging
 from .config import DasConfig
 from .consts import ACQUISITION_PATH, DOWNLOAD_CALLBACK_PATH
@@ -54,8 +54,8 @@ def get_app():
 
     config = DasConfig.get_config()
 
-    auth_middleware = JwtMiddleware(config.verification_key_url)
-    auth_middleware.initialize()
+    auth_middleware = JwtMiddleware()
+    auth_middleware.initialize(config.verification_key_url)
 
     requests_store = AcquisitionRequestStore(redis.Redis(
         port=config.redis_port,

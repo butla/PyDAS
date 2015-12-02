@@ -1,12 +1,13 @@
 """
-JWT middleware for Falcon.
+Authorization/authentication components for Falcon apps.
 """
 
 import jwt
 import logging
-import requests
 
 import falcon
+
+from . import get_uaa_key, UserOrgAccessChecker, NoOrgAccessError, PermissionServiceError
 
 
 class JwtMiddleware:
@@ -15,26 +16,18 @@ class JwtMiddleware:
     JWT middleware for Falcon.
     """
 
-    def __init__(self, verification_key_url):
-        """
-        :param str verification_key_url: URL under which the public key to verify a token can be found.
-        """
-        self._key_url = verification_key_url
+    def __init__(self):
         self._verification_key = None
         self._log = logging.getLogger(type(self).__name__)
 
-    def initialize(self):
+    def initialize(self, uaa_key_url):
         """
         Prepares the middleware object for work. Needs to be called before any requests to the app.
         Actually downloads the public key that will be used to verify JWT signature.
-        :raises Exception: when bad things happen TODO
+        :param str uaa_key_url: URL under which the public key to verify a token can be found.
+        :raises `UaaError`: when getting the key fails
         """
-        response = requests.get(self._key_url)
-        # TODO sensible exceptions
-        if not response.status_code == 200:
-            # TODO add logging
-            raise Exception('Freakout, no public key. Message: {}'.format(response.text))
-        self._verification_key = response.json()['value']
+        self._verification_key = get_uaa_key(uaa_key_url)
 
     def process_request(self, req, resp):
         """
@@ -56,13 +49,37 @@ class JwtMiddleware:
         token = req.auth.split()[1] # skip 'bearer'
         try:
             jwt.decode(token, key=self._verification_key)
-        except Exception:
+        except Exception as e:
             err_msg = 'Verification of the JWT token has failed.'
             self._log.exception(err_msg)
-            raise falcon.HTTPUnauthorized('Invalid token', err_msg)
+            raise falcon.HTTPUnauthorized('Invalid token', err_msg) from e
 
     def process_response(self, req, resp, resource):
         """
         Doesn't do anything. Part of Falcon middleware interface.
         """
         pass
+
+
+class FalconUserOrgAccessChecker(UserOrgAccessChecker):
+
+    """
+    Wrapper for `UserOrgAccessChecker` that throws Falcon errors.
+    Should be used from within Falcon resources.
+    """
+
+    def validate_access(self, user_token, org_ids):
+        try:
+            super().validate_access(user_token, org_ids)
+        except NoOrgAccessError as e:
+            raise falcon.HTTPForbidden(
+                "User doesn't have access to resource.",
+                "User doesn't have sufficient rights in organization owning the resource."
+            ) from e
+        except PermissionServiceError as e:
+            raise falcon.HTTPServiceUnavailable(
+                'Error when contacting permission service.',
+                "The User Management service couldn't be contacted or experienced errors.",
+                10
+            ) from e
+

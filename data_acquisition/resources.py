@@ -11,6 +11,7 @@ import falcon
 import requests
 
 from .consts import DOWNLOAD_CALLBACK_PATH, METADATA_PARSER_CALLBACK_PATH
+from .cf_app_utils.auth.falcon import FalconUserOrgAccessChecker
 from .requests import AcquisitionRequest
 
 
@@ -86,6 +87,7 @@ class AcquisitionRequestsResource(DasResource):
             'source': {'type': 'string', 'required': True},
             'title': {'type': 'string', 'required': True},
         })
+        self._org_checker = FalconUserOrgAccessChecker(config.user_management_url)
 
     def on_post(self, req, resp):
         """
@@ -94,6 +96,8 @@ class AcquisitionRequestsResource(DasResource):
         :param `falcon.Response` resp:
         """
         acquisition_req = self._get_acquisition_req(req)
+        self._org_checker.validate_access(req.auth, [acquisition_req.orgUUID])
+
         self._req_store.put(acquisition_req)
         self._enqueue_downloader_request(acquisition_req, req.auth)
 
