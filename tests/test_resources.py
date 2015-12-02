@@ -103,7 +103,7 @@ def test_acquisition_request(falcon_api, das_config):
     )
 
     falcon_api.mock_req_store.put.assert_called_with(AcquisitionRequest(**resp_json))
-    assert resp_json['status'] == 'VALIDATED'
+    assert resp_json['state'] == 'VALIDATED'
 
 
 def test_acquisition_bad_request(falcon_api):
@@ -153,7 +153,7 @@ def test_downloader_callback_ok(falcon_api, das_config):
 
     falcon_api.mock_req_store.get.assert_called_with(TEST_DOWNLOAD_CALLBACK['id'])
     updated_request = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
-    updated_request.status = 'DOWNLOADED'
+    updated_request.state = 'DOWNLOADED'
     falcon_api.mock_req_store.put.assert_called_with(updated_request)
 
 
@@ -174,7 +174,7 @@ def test_downloader_callback_failed_request(falcon_api):
     assert headers.status == falcon.HTTP_200
 
     updated_request = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
-    updated_request.status = 'ERROR'
+    updated_request.state = 'ERROR'
     falcon_api.mock_req_store.put.assert_called_with(updated_request)
 
 

@@ -6,7 +6,6 @@ import json
 import uuid
 
 
-# TODO maybe there can be a request base with the five attributes and then inheriting ones
 class AcquisitionRequestStore:
 
     """
@@ -37,6 +36,7 @@ class AcquisitionRequestStore:
         """
         keys = self._redis.keys('*:{}'.format(req_id))
         req_json = json.loads(self._redis.get(keys[0]).decode())
+        # TODO this should ignore the extra keys located in Redis from older DAS
         return AcquisitionRequest(**req_json)
 
 
@@ -47,7 +47,7 @@ class AcquisitionRequest:
     """
 
     def __init__(self, title, orgUUID, publicRequest, source, category,
-                 status='VALIDATED', id=None):
+                 state='VALIDATED', id=None):
         self.orgUUID = orgUUID
         self.publicRequest = publicRequest
         self.source = source
@@ -55,8 +55,8 @@ class AcquisitionRequest:
         self.title = title
         # TODO change to an enum
         # can be VALIDATED, DOWNLOADED, FINISHED, ERROR
-        self.status = status
-        # TODO maybe a creation time is needed
+        self.state = state
+        # TODO add "timestamps" for setting to each state
         if id:
             self.id = id
         else:

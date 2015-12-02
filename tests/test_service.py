@@ -17,7 +17,7 @@ def test_acquisition_request(requests_store, das, downloader_imposter):
     req_id = response.json()['id']
 
     assert response.status_code == 202
-    assert requests_store.get(req_id).status == 'VALIDATED'
+    assert requests_store.get(req_id).state == 'VALIDATED'
 
     request_to_imposter = downloader_imposter.wait_for_requests()[0]
     assert json.loads(request_to_imposter.body) == {
@@ -38,7 +38,7 @@ def test_download_callback(requests_store, das, metadata_parser_imposter):
     )
 
     assert response.status_code == 200
-    assert requests_store.get(req_id).status == 'DOWNLOADED'
+    assert requests_store.get(req_id).state == 'DOWNLOADED'
 
     request_to_imposter = metadata_parser_imposter.wait_for_requests()[0]
     proper_metadata_req = {

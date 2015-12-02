@@ -175,11 +175,11 @@ class DownloadCallbackResource(DasResource):
 
         acquisition_req = self._req_store.get(req_id)
         if req_json['state'] == 'DONE':
-            acquisition_req.status = 'DOWNLOADED'
+            acquisition_req.state = 'DOWNLOADED'
             self._req_store.put(acquisition_req)
             self._enqueue_metadata_request(acquisition_req, req_json, req.auth)
         else:
-            acquisition_req.status = 'ERROR'
+            acquisition_req.state = 'ERROR'
             self._req_store.put(acquisition_req)
 
     def _enqueue_metadata_request(self, acquisition_req, download_callback, req_auth):

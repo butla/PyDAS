@@ -63,7 +63,7 @@ TEST_DOWNLOAD_REQUEST = {
 
 TEST_ACQUISITION_REQ_JSON = dict(TEST_DOWNLOAD_REQUEST)
 TEST_ACQUISITION_REQ_JSON.update({
-    'status': 'VALIDATED',
+    'state': 'VALIDATED',
     'id': 'fake-id'
 })
 
