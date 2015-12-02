@@ -5,9 +5,9 @@ Python Data Acquisition Service
 **Under heavy development**
 
 ## TODO (necessary):
+1. Add timestamps on state changes.
 1. Callback for metadataparser.
 1. Uploader support.
-1. Check if Redis entries have the same properties as in the old DAS.
 1. Add rest of DAS endpoints.
 1. Split native and non-native requirements.
 1. Add manifest.yml.

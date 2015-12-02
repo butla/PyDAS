@@ -33,3 +33,12 @@ def test_get(req_store_real, redis_client):
     redis_client.set('fake-org-uuid:fake-id', TEST_ACQUISITION_REQ_STR)
     acquisition_req = req_store_real.get('fake-id')
     assert TEST_ACQUISITION_REQ_STR == str(acquisition_req)
+
+
+def test_get_from_old_base(req_store_real, redis_client):
+    old_request = dict(TEST_ACQUISITION_REQ_JSON)
+    old_request.update({'unnecessary_field': 'blablabla'})
+    redis_client.set('fake-org-uuid:fake-id', json.dumps(old_request))
+
+    acquisition_req = req_store_real.get('fake-id')
+    assert TEST_ACQUISITION_REQ_STR == str(acquisition_req)

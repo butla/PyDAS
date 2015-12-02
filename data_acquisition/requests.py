@@ -36,8 +36,15 @@ class AcquisitionRequestStore:
         """
         keys = self._redis.keys('*:{}'.format(req_id))
         req_json = json.loads(self._redis.get(keys[0]).decode())
-        # TODO this should ignore the extra keys located in Redis from older DAS
-        return AcquisitionRequest(**req_json)
+        return AcquisitionRequest(
+            title=req_json['title'],
+            orgUUID=req_json['orgUUID'],
+            publicRequest=req_json['publicRequest'],
+            source=req_json['source'],
+            category=req_json['category'],
+            state=req_json['state'],
+            id=req_json['id']
+        )
 
 
 class AcquisitionRequest:
