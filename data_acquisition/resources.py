@@ -158,7 +158,7 @@ class DownloadCallbackResource(DasResource):
             'state': {'type': 'string', 'required': True},
             'savedObjectId': {'type': 'string', 'required': True},
             'objectStoreId': {'type': 'string', 'required': True},
-            })
+        })
 
     def on_post(self, req, resp, req_id):
         """
@@ -210,3 +210,44 @@ class DownloadCallbackResource(DasResource):
             url=self._config.metadata_parser_url,
             json=metadata_parse_req,
             headers={'Authorization': req_auth})
+
+
+class MetadataCallbackResource(DasResource):
+
+    """
+    Resource accepting callbacks from the Metadata Parser.
+    """
+
+    def __init__(self, req_store, config):
+        """
+        :param `.requests.AcquisitionRequestStore` req_store:
+        :param `data_acquisition.DasConfig` config: Configuration object for the application.
+        """
+        # TODO this class should shouldn't inherit DasResource, maybe change it to composition
+        super().__init__(req_store, None, config)
+        self._callback_validator = Validator(schema={
+            'state': {'type': 'string', 'required': True}
+        })
+
+    def on_post(self, req, resp, req_id):
+        """
+        Callback after download of the data set.
+        This will trigger a request to Metadata Parser.
+        :param `falcon.Request` req:
+        :param `falcon.Response` resp:
+        :param str req_id: ID given to the original acquisition request
+        """
+        req_json = json.loads(req.stream.read().decode())
+        if not self._callback_validator.validate(req_json):
+            err_msg = 'Errors in metadata callback parameters: {}'.format(
+                self._callback_validator.errors)
+            self._log.error(err_msg)
+            raise falcon.HTTPBadRequest('Invalid parameters', err_msg)
+
+        acquisition_req = self._req_store.get(req_id)
+        if req_json['state'] == 'DONE':
+            acquisition_req.set_finished()
+            self._req_store.put(acquisition_req)
+        else:
+            acquisition_req.set_error()
+            self._req_store.put(acquisition_req)

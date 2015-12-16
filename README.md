@@ -5,12 +5,11 @@ Python Data Acquisition Service
 **Under heavy development**
 
 ## TODO (necessary):
-1. Callback for metadataparser.
-1. Handle conversion of Redis data from old DAS.
 1. Uploader support.
 1. Add rest of DAS endpoints.
 1. Wrap request sending in functions that can log errors.
 1. Special handling of hdfs URIs?
+1. Handle conversion of Redis data from old DAS.
 1. Split native and non-native requirements.
 1. Add manifest.yml.
 1. Add bumpversion and versioning.

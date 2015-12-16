@@ -4,7 +4,7 @@ import requests
 from data_acquisition.consts import ACQUISITION_PATH
 from data_acquisition.resources import get_download_callback_url, get_metadata_callback_url
 from .consts import (TEST_AUTH_HEADER, TEST_DOWNLOAD_REQUEST, TEST_ACQUISITION_REQ,
-                     TEST_DOWNLOAD_CALLBACK)
+                     TEST_DOWNLOAD_CALLBACK, TEST_METADATA_CALLBACK)
 from .utils import dict_is_part_of
 
 
@@ -56,7 +56,18 @@ def test_download_callback(requests_store, das, metadata_parser_imposter):
     assert dict_is_part_of(request_to_imposter.headers, {'authorization': TEST_AUTH_HEADER})
 
 
-# TODO test redis store
-# TODO test callback from metadata parser
-# TODO test getting all entries for an org
+def test_metadata_callback(requests_store, das):
+    requests_store.put(TEST_ACQUISITION_REQ)
+    req_id = TEST_ACQUISITION_REQ.id
+
+    response = requests.post(
+        get_metadata_callback_url(das.base_url, req_id=req_id),
+        json=TEST_METADATA_CALLBACK,
+        headers={'Authorization': TEST_AUTH_HEADER}
+    )
+
+    assert response.status_code == 200
+    assert requests_store.get(req_id).state == 'FINISHED'
+
+# TODO test getting all entries for an org, a single entry, all entries
 # TODO test that middleware is working (invalid token)

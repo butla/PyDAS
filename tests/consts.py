@@ -79,6 +79,8 @@ TEST_DOWNLOAD_CALLBACK = {
     'objectStoreId': 'hdfs://some-fake-hdfs-path',
 }
 
+TEST_METADATA_CALLBACK = {'state': 'DONE'}
+
 TEST_VCAP_SERVICES_TEMPLATE = """
  {{
   "redis28": [
