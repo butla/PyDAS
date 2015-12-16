@@ -109,11 +109,11 @@ class DasConfig:
         for path_part in service_conf_path:
             try:
                 service_value = service_value[path_part]
-            except KeyError as e:
+            except KeyError as ex:
                 raise BadConfigurationPathError(
                     'Configuration value {} in service {} not found.'.format(
                         path_parts,
-                        service_conf_path)) from e
+                        service_conf_path)) from ex
         return service_value
 
 

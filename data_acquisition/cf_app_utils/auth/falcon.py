@@ -2,9 +2,9 @@
 Authorization/authentication components for Falcon apps.
 """
 
-import jwt
 import logging
 
+import jwt
 import falcon
 
 from . import get_uaa_key, UserOrgAccessChecker, NoOrgAccessError, PermissionServiceError
@@ -49,10 +49,10 @@ class JwtMiddleware:
         token = req.auth.split()[1] # skip 'bearer'
         try:
             jwt.decode(token, key=self._verification_key)
-        except Exception as e:
+        except Exception as ex:
             err_msg = 'Verification of the JWT token has failed.'
             self._log.exception(err_msg)
-            raise falcon.HTTPUnauthorized('Invalid token', err_msg) from e
+            raise falcon.HTTPUnauthorized('Invalid token', err_msg) from ex
 
     def process_response(self, req, resp, resource):
         """
@@ -71,15 +71,15 @@ class FalconUserOrgAccessChecker(UserOrgAccessChecker):
     def validate_access(self, user_token, org_ids):
         try:
             super().validate_access(user_token, org_ids)
-        except NoOrgAccessError as e:
+        except NoOrgAccessError as ex:
             raise falcon.HTTPForbidden(
                 "User doesn't have access to resource.",
                 "User doesn't have sufficient rights in organization owning the resource."
-            ) from e
-        except PermissionServiceError as e:
+            ) from ex
+        except PermissionServiceError as ex:
             raise falcon.HTTPServiceUnavailable(
                 'Error when contacting permission service.',
                 "The User Management service couldn't be contacted or experienced errors.",
                 10
-            ) from e
+            ) from ex
 

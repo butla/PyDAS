@@ -1,3 +1,4 @@
+import copy
 import json
 from unittest.mock import MagicMock
 from urllib.parse import urljoin
@@ -73,10 +74,11 @@ def test_get_metadata_callback_url():
 
 
 @responses.activate
-def test_acquisition_request(falcon_api, das_config):
+def test_acquisition_request(falcon_api, das_config, monkeypatch):
     responses.add(responses.GET, FAKE_PERMISSION_URL, status=200, json=[
         {'organization': {'metadata': {'guid': TEST_ORG_UUID}}}
     ])
+    monkeypatch.setattr('time.time', lambda: 345.25)
 
     resp_body, headers = simulate_falcon_request(
         api=falcon_api,
@@ -102,8 +104,10 @@ def test_acquisition_request(falcon_api, das_config):
         headers={'Authorization': TEST_AUTH_HEADER}
     )
 
-    falcon_api.mock_req_store.put.assert_called_with(AcquisitionRequest(**resp_json))
-    assert resp_json['state'] == 'VALIDATED'
+    stored_req = AcquisitionRequest(**resp_json)
+    falcon_api.mock_req_store.put.assert_called_with(stored_req)
+    assert stored_req.state == 'VALIDATED'
+    assert stored_req.timestamps['VALIDATED'] == 345
 
 
 def test_acquisition_bad_request(falcon_api):
@@ -120,7 +124,7 @@ def test_acquisition_bad_request(falcon_api):
     assert headers.status == falcon.HTTP_400
 
 
-def test_downloader_callback_ok(falcon_api, das_config):
+def test_downloader_callback_ok(falcon_api, das_config, monkeypatch):
     proper_metadata_req = {
         'orgUUID': TEST_ACQUISITION_REQ.orgUUID,
         'publicRequest': TEST_ACQUISITION_REQ.publicRequest,
@@ -131,7 +135,8 @@ def test_downloader_callback_ok(falcon_api, das_config):
         'idInObjectStore': TEST_DOWNLOAD_CALLBACK['objectStoreId'],
         'callbackUrl': get_metadata_callback_url('https://my-fake-url', TEST_ACQUISITION_REQ.id)
     }
-    falcon_api.mock_req_store.get.return_value = TEST_ACQUISITION_REQ
+    falcon_api.mock_req_store.get.return_value = copy.deepcopy(TEST_ACQUISITION_REQ)
+    monkeypatch.setattr('time.time', lambda: 123.25)
 
     _, headers = simulate_falcon_request(
         api=falcon_api,
@@ -154,13 +159,15 @@ def test_downloader_callback_ok(falcon_api, das_config):
     falcon_api.mock_req_store.get.assert_called_with(TEST_DOWNLOAD_CALLBACK['id'])
     updated_request = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
     updated_request.state = 'DOWNLOADED'
+    updated_request.timestamps['DOWNLOADED'] = 123
     falcon_api.mock_req_store.put.assert_called_with(updated_request)
 
 
-def test_downloader_callback_failed_request(falcon_api):
-    falcon_api.mock_req_store.get.return_value = TEST_ACQUISITION_REQ
+def test_downloader_callback_failed_request(falcon_api, monkeypatch):
+    falcon_api.mock_req_store.get.return_value = copy.deepcopy(TEST_ACQUISITION_REQ)
     failed_callback_req = dict(TEST_DOWNLOAD_CALLBACK)
     failed_callback_req['state'] = 'ERROR'
+    monkeypatch.setattr('time.time', lambda: 234.25)
 
     _, headers = simulate_falcon_request(
         api=falcon_api,
@@ -175,6 +182,7 @@ def test_downloader_callback_failed_request(falcon_api):
 
     updated_request = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
     updated_request.state = 'ERROR'
+    updated_request.timestamps['ERROR'] = 234
     falcon_api.mock_req_store.put.assert_called_with(updated_request)
 
 

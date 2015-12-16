@@ -1,4 +1,4 @@
-from data_acquisition.requests import AcquisitionRequest
+from data_acquisition.acquisition_request import AcquisitionRequest
 from data_acquisition.cf_app_utils.auth import USER_MANAGEMENT_PATH
 
 RSA_2048_PRIV_KEY = '''-----BEGIN RSA PRIVATE KEY-----
@@ -64,7 +64,8 @@ TEST_DOWNLOAD_REQUEST = {
 TEST_ACQUISITION_REQ_JSON = dict(TEST_DOWNLOAD_REQUEST)
 TEST_ACQUISITION_REQ_JSON.update({
     'state': 'VALIDATED',
-    'id': 'fake-id'
+    'id': 'fake-id',
+    'timestamps': {},
 })
 
 TEST_ACQUISITION_REQ = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
@@ -74,7 +75,6 @@ TEST_ACQUISITION_REQ_STR = str(TEST_ACQUISITION_REQ)
 TEST_DOWNLOAD_CALLBACK = {
     'id': TEST_ACQUISITION_REQ_JSON['id'],
     'state': 'DONE',
-    # 'downloadedBytes': 123,
     'savedObjectId': 'fake-saved-id',
     'objectStoreId': 'hdfs://some-fake-hdfs-path',
 }

@@ -13,7 +13,7 @@ import redis.connection
 from .consts import (RSA_2048_PUB_KEY, TEST_VCAP_APPLICATION, TEST_VCAP_SERVICES_TEMPLATE,
                      TEST_AUTH_HEADER, TEST_ORG_UUID)
 from data_acquisition.consts import DOWNLOADER_PATH, METADATA_PARSER_PATH
-from data_acquisition.requests import AcquisitionRequestStore
+from data_acquisition.acquisition_request import AcquisitionRequestStore
 
 
 REDIS_REPO = 'redis'

@@ -16,7 +16,7 @@ from .cf_app_utils.auth.falcon import JwtMiddleware
 from .cf_app_utils import configure_logging
 from .config import DasConfig
 from .consts import ACQUISITION_PATH, DOWNLOAD_CALLBACK_PATH
-from .requests import AcquisitionRequestStore
+from .acquisition_request import AcquisitionRequestStore
 from .resources import AcquisitionRequestsResource, DownloadCallbackResource
 
 

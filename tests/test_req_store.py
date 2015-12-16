@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from data_acquisition.requests import AcquisitionRequest, AcquisitionRequestStore
+from data_acquisition.acquisition_request import AcquisitionRequest, AcquisitionRequestStore
 from .consts import TEST_ACQUISITION_REQ, TEST_ACQUISITION_REQ_STR, TEST_ACQUISITION_REQ_JSON
 
 
@@ -30,9 +30,13 @@ def test_put(req_store, redis_mock):
 
 
 def test_get(req_store_real, redis_client):
-    redis_client.set('fake-org-uuid:fake-id', TEST_ACQUISITION_REQ_STR)
+    new_req = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
+    new_req.timestamps['VALIDATED'] = 1449523225
+
+    redis_client.set('fake-org-uuid:fake-id', str(new_req))
     acquisition_req = req_store_real.get('fake-id')
-    assert TEST_ACQUISITION_REQ_STR == str(acquisition_req)
+
+    assert acquisition_req == new_req
 
 
 def test_get_from_old_base(req_store_real, redis_client):

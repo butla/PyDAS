@@ -10,9 +10,9 @@ from cerberus import Validator
 import falcon
 import requests
 
+from .acquisition_request import AcquisitionRequest
 from .consts import DOWNLOAD_CALLBACK_PATH, METADATA_PARSER_CALLBACK_PATH
 from .cf_app_utils.auth.falcon import FalconUserOrgAccessChecker
-from .requests import AcquisitionRequest
 
 
 def get_download_callback_url(das_url, req_id):
@@ -117,7 +117,9 @@ class AcquisitionRequestsResource(DasResource):
                 self._download_req_validator.errors)
             self._log.error(err_msg)
             raise falcon.HTTPBadRequest('Invalid parameters', err_msg)
-        return AcquisitionRequest(**req_json)
+        acquisition_req = AcquisitionRequest(**req_json)
+        acquisition_req.set_validated()
+        return acquisition_req
 
     def _enqueue_downloader_request(self, acquisition_req, req_auth):
         """
@@ -164,7 +166,7 @@ class DownloadCallbackResource(DasResource):
         This will trigger a request to Metadata Parser.
         :param `falcon.Request` req:
         :param `falcon.Response` resp:
-        :param str req_id: ID given to the original aczquisition request
+        :param str req_id: ID given to the original acquisition request
         """
         req_json = json.loads(req.stream.read().decode())
         if not self._callback_validator.validate(req_json):
@@ -175,11 +177,11 @@ class DownloadCallbackResource(DasResource):
 
         acquisition_req = self._req_store.get(req_id)
         if req_json['state'] == 'DONE':
-            acquisition_req.state = 'DOWNLOADED'
+            acquisition_req.set_downloaded()
             self._req_store.put(acquisition_req)
             self._enqueue_metadata_request(acquisition_req, req_json, req.auth)
         else:
-            acquisition_req.state = 'ERROR'
+            acquisition_req.set_error()
             self._req_store.put(acquisition_req)
 
     def _enqueue_metadata_request(self, acquisition_req, download_callback, req_auth):
