@@ -14,6 +14,8 @@ from .acquisition_request import AcquisitionRequest
 from .consts import DOWNLOAD_CALLBACK_PATH, METADATA_PARSER_CALLBACK_PATH
 from .cf_app_utils.auth.falcon import FalconUserOrgAccessChecker
 
+LOG = logging.getLogger(__name__)
+
 
 def get_download_callback_url(das_url, req_id):
     """
@@ -31,6 +33,52 @@ def get_metadata_callback_url(das_url, req_id):
     :rtype: str
     """
     return urljoin(das_url, METADATA_PARSER_CALLBACK_PATH.format(req_id=req_id))
+
+
+class SecretString:
+
+    """
+    A wrapper for a string that makes it not visible in the logs.
+    """
+
+    def __init__(self, string):
+        self.string = string
+
+    def __repr__(self):
+        return 'SecretString()'
+
+    def __eq__(self, other):
+        return self.value() == other.value()
+
+    def value(self):
+        return self.string
+
+
+def external_service_call(url, json, hidden_token):
+    """
+    Sends a request to an external service.
+    When passing this function to Redis queue the user's token isn't logged.
+    :param str url: URL for the call.
+    :param dict json: The data to be sent.
+    :param `SecretString` hidden_token: Wrapped user's OAuth token.
+    :returns: True when request succeeds, false otherwise.
+    :rtype: bool
+    """
+    try:
+        resp = requests.post(url, json=json, headers={'Authorization': hidden_token.value()})
+        if resp.ok:
+            LOG.info('Successful request to %s with data %s', url, json)
+            return True
+        else:
+            LOG.error(
+                'Request failed:\nURL: %s\ndata: %s\nservice response:%s',
+                url,
+                json,
+                resp.text
+            )
+    except:
+        LOG.exception('Error when sending a request to %s with data %s', url, json)
+    return False
 
 
 class DasResource:
@@ -129,15 +177,15 @@ class AcquisitionRequestsResource(DasResource):
         :param AcquisitionRequest acquisition_req:
         :param str req_auth: Value of Authorization header, the token.
         """
-        # TODO there should be function with exception handling instead of just passing parameters
         self._queue.enqueue(
-            requests.post,
+            external_service_call,
             url=self._config.downloader_url,
             json={
                 'source': acquisition_req.source,
                 'callback': self._get_download_callback_url(acquisition_req.id)
             },
-            headers={'Authorization': req_auth})
+            hidden_token=SecretString(req_auth)
+        )
 
 
 class DownloadCallbackResource(DasResource):
@@ -203,13 +251,12 @@ class DownloadCallbackResource(DasResource):
             'idInObjectStore': download_callback['objectStoreId'],
             'callbackUrl': self._get_metadata_callback_url(acquisition_req.id)
         }
-
-        # TODO there should be function with exception handling instead of just passing parameters
         self._queue.enqueue(
-            requests.post,
+            external_service_call,
             url=self._config.metadata_parser_url,
             json=metadata_parse_req,
-            headers={'Authorization': req_auth})
+            hidden_token=SecretString(req_auth)
+        )
 
 
 class MetadataCallbackResource(DasResource):

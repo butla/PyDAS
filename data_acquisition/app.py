@@ -29,10 +29,8 @@ def start_queue_worker(queue):
         """
         Function that actually consumes the tasks from queue.
         """
-        # TODO put this in a loop with catching exceptions
-        # TODO add a test for caching the exception and maybe put this in another file
         with rq.Connection(queue.connection):
-            rq.Worker(queue).work()
+            rq.Worker(queue, default_result_ttl=0).work()
 
     def terminate_handler(signo, stack_frame):
         """

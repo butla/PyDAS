@@ -5,11 +5,8 @@ Python Data Acquisition Service
 **Under heavy development**
 
 ## TODO (necessary):
-1. Hide token in logs
-1. test for logging.
 1. Uploader support.
 1. Add rest of DAS endpoints.
-1. Wrap request sending in functions that can log errors.
 1. Special handling of hdfs URIs?
 1. Handle conversion of Redis data from old DAS.
 1. Split native and non-native requirements.
@@ -17,6 +14,7 @@ Python Data Acquisition Service
 1. Add bumpversion and versioning.
 
 ## TODO (optional):
+1. test for logging.
 1. Add a script to run locally with Docker end environment.
 1. Add configuration parsing solution.
 1. All addresses should be HTTPS.

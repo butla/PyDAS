@@ -1,10 +1,9 @@
 import copy
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from urllib.parse import urljoin
 
 import responses
-import requests
 import falcon
 import pytest
 
@@ -15,7 +14,8 @@ from data_acquisition.consts import (ACQUISITION_PATH, DOWNLOADER_PATH, DOWNLOAD
                                      METADATA_PARSER_PATH, METADATA_PARSER_CALLBACK_PATH)
 from data_acquisition.resources import (AcquisitionRequestsResource, DownloadCallbackResource,
                                         MetadataCallbackResource, get_download_callback_url,
-                                        get_metadata_callback_url)
+                                        get_metadata_callback_url, external_service_call,
+                                        SecretString)
 from .consts import (TEST_DOWNLOAD_REQUEST, TEST_DOWNLOAD_CALLBACK, TEST_ACQUISITION_REQ,
                      TEST_ACQUISITION_REQ_JSON, TEST_METADATA_CALLBACK, TEST_AUTH_HEADER,
                      TEST_ORG_UUID, FAKE_PERMISSION_URL, FAKE_PERMISSION_SERVICE_URL)
@@ -109,6 +109,33 @@ def test_get_metadata_callback_url():
 
 
 @responses.activate
+def test_external_service_call_ok():
+    test_url = 'https://some-fake-url/'
+    test_token = 'bearer fake-token'
+    test_json = {'a': 'b'}
+    responses.add(responses.POST, test_url, status=200)
+
+    assert external_service_call(test_url, test_json, SecretString(test_token))
+    assert responses.calls[0].request.url == test_url
+    assert responses.calls[0].request.body == json.dumps(test_json)
+    assert responses.calls[0].request.headers['Authorization'] == test_token
+
+
+@responses.activate
+def test_external_service_call_not_ok():
+    test_url = 'https://some-fake-url/'
+    responses.add(responses.POST, test_url, status=404)
+
+    assert not external_service_call(test_url, {'a': 'b'}, SecretString('bearer fake-token'))
+
+
+@patch('data_acquisition.resources.requests.post')
+def test_external_service_call_error(mock_post):
+    mock_post.side_effect = Exception('test exception')
+    assert not external_service_call('https://bla', {'a': 'b'}, SecretString('bearer fake-token'))
+
+
+@responses.activate
 def test_acquisition_request(falcon_api, das_config, fake_time):
     responses.add(responses.GET, FAKE_PERMISSION_URL, status=200, json=[
         {'organization': {'metadata': {'guid': TEST_ORG_UUID}}}
@@ -124,10 +151,10 @@ def test_acquisition_request(falcon_api, das_config, fake_time):
         'callback': get_download_callback_url('https://my-fake-url', resp_json['id'])
     }
     falcon_api.mock_queue.enqueue.assert_called_with(
-        requests.post,
+        external_service_call,
         url=das_config.downloader_url,
         json=proper_downloader_req,
-        headers={'Authorization': TEST_AUTH_HEADER}
+        hidden_token=SecretString(TEST_AUTH_HEADER)
     )
 
     stored_req = AcquisitionRequest(**resp_json)
@@ -165,10 +192,10 @@ def test_downloader_callback_ok(falcon_api, das_config, fake_time, req_store_get
     assert headers.status == falcon.HTTP_200
 
     falcon_api.mock_queue.enqueue.assert_called_with(
-        requests.post,
+        external_service_call,
         url=das_config.metadata_parser_url,
         json=proper_metadata_req,
-        headers={'Authorization': TEST_AUTH_HEADER}
+        hidden_token=SecretString(TEST_AUTH_HEADER)
     )
 
     updated_request = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
