@@ -5,6 +5,8 @@ Python Data Acquisition Service
 **Under heavy development**
 
 ## TODO (necessary):
+1. Hide token in logs
+1. test for logging.
 1. Uploader support.
 1. Add rest of DAS endpoints.
 1. Wrap request sending in functions that can log errors.
@@ -21,7 +23,7 @@ Python Data Acquisition Service
 1. Transaction IDs in the further calls and errors.
 1. Make it run on Travis.
 1. Add Swagger to service.
-1. Service test should only call the service through a Bravado generated client.
+1. Service test should only call the service through a Bravado generated client. Maybe separate contract tests.
 1. Command starting in tests should be taken from manifest.
 1. Make talons.auth middleware implement Falcon middleware, because this is confusing
 

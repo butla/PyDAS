@@ -22,6 +22,10 @@ from .consts import (TEST_DOWNLOAD_REQUEST, TEST_DOWNLOAD_CALLBACK, TEST_ACQUISI
 from .utils import dict_is_part_of, simulate_falcon_request
 
 
+FAKE_TIME = 234.25
+FAKE_TIMESTAMP = 234
+
+
 class MockApi(falcon.API):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -70,6 +74,30 @@ def falcon_api(das_config):
     return api
 
 
+@pytest.fixture(scope='function')
+def req_store_get(falcon_api):
+    falcon_api.mock_req_store.get.return_value = copy.deepcopy(TEST_ACQUISITION_REQ)
+    return falcon_api.mock_req_store.get
+
+
+@pytest.fixture(scope='function')
+def fake_time(monkeypatch):
+    monkeypatch.setattr('time.time', lambda: FAKE_TIME)
+
+
+def _simulate_falcon_post(api, path, data):
+    resp_body, headers = simulate_falcon_request(
+        api=api,
+        path=path,
+        body=json.dumps(data),
+        encoding='utf-8',
+        method='POST',
+        headers=[('Authorization', TEST_AUTH_HEADER)]
+    )
+    resp_json = json.loads(resp_body) if resp_body else None
+    return resp_json, headers
+
+
 def test_get_download_callback_url():
     callback_url = get_download_callback_url('https://some-test-das-url', 'some-test-id')
     assert callback_url == 'https://some-test-das-url/v1/das/callback/downloader/some-test-id'
@@ -81,21 +109,12 @@ def test_get_metadata_callback_url():
 
 
 @responses.activate
-def test_acquisition_request(falcon_api, das_config, monkeypatch):
+def test_acquisition_request(falcon_api, das_config, fake_time):
     responses.add(responses.GET, FAKE_PERMISSION_URL, status=200, json=[
         {'organization': {'metadata': {'guid': TEST_ORG_UUID}}}
     ])
-    monkeypatch.setattr('time.time', lambda: 345.25)
 
-    resp_body, headers = simulate_falcon_request(
-        api=falcon_api,
-        path=ACQUISITION_PATH,
-        encoding='utf-8',
-        method='POST',
-        body=json.dumps(TEST_DOWNLOAD_REQUEST),
-        headers=[('Authorization', TEST_AUTH_HEADER)]
-    )
-    resp_json = json.loads(resp_body)
+    resp_json, headers = _simulate_falcon_post(falcon_api, ACQUISITION_PATH, TEST_DOWNLOAD_REQUEST)
 
     assert headers.status == falcon.HTTP_202
     assert dict_is_part_of(resp_json, TEST_DOWNLOAD_REQUEST)
@@ -114,24 +133,18 @@ def test_acquisition_request(falcon_api, das_config, monkeypatch):
     stored_req = AcquisitionRequest(**resp_json)
     falcon_api.mock_req_store.put.assert_called_with(stored_req)
     assert stored_req.state == 'VALIDATED'
-    assert stored_req.timestamps['VALIDATED'] == 345
+    assert stored_req.timestamps['VALIDATED'] == FAKE_TIMESTAMP
 
 
 def test_acquisition_bad_request(falcon_api):
     broken_request = dict(TEST_DOWNLOAD_REQUEST)
     del broken_request['category']
 
-    _, headers = simulate_falcon_request(
-        api=falcon_api,
-        path=ACQUISITION_PATH,
-        encoding='utf-8',
-        method='POST',
-        body=json.dumps(broken_request),
-    )
+    __, headers = _simulate_falcon_post(falcon_api, ACQUISITION_PATH, broken_request)
     assert headers.status == falcon.HTTP_400
 
 
-def test_downloader_callback_ok(falcon_api, das_config, monkeypatch):
+def test_downloader_callback_ok(falcon_api, das_config, fake_time, req_store_get):
     proper_metadata_req = {
         'orgUUID': TEST_ACQUISITION_REQ.orgUUID,
         'publicRequest': TEST_ACQUISITION_REQ.publicRequest,
@@ -142,16 +155,11 @@ def test_downloader_callback_ok(falcon_api, das_config, monkeypatch):
         'idInObjectStore': TEST_DOWNLOAD_CALLBACK['objectStoreId'],
         'callbackUrl': get_metadata_callback_url('https://my-fake-url', TEST_ACQUISITION_REQ.id)
     }
-    falcon_api.mock_req_store.get.return_value = copy.deepcopy(TEST_ACQUISITION_REQ)
-    monkeypatch.setattr('time.time', lambda: 123.25)
 
-    _, headers = simulate_falcon_request(
+    __, headers = _simulate_falcon_post(
         api=falcon_api,
         path=DOWNLOAD_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
-        encoding='utf-8',
-        method='POST',
-        body=json.dumps(TEST_DOWNLOAD_CALLBACK),
-        headers=[('Authorization', TEST_AUTH_HEADER)]
+        data=TEST_DOWNLOAD_CALLBACK
     )
 
     assert headers.status == falcon.HTTP_200
@@ -163,100 +171,72 @@ def test_downloader_callback_ok(falcon_api, das_config, monkeypatch):
         headers={'Authorization': TEST_AUTH_HEADER}
     )
 
-    falcon_api.mock_req_store.get.assert_called_with(TEST_DOWNLOAD_CALLBACK['id'])
     updated_request = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
     updated_request.state = 'DOWNLOADED'
-    updated_request.timestamps['DOWNLOADED'] = 123
+    updated_request.timestamps['DOWNLOADED'] = FAKE_TIMESTAMP
     falcon_api.mock_req_store.put.assert_called_with(updated_request)
 
 
-def test_downloader_callback_failed(falcon_api, monkeypatch):
-    falcon_api.mock_req_store.get.return_value = copy.deepcopy(TEST_ACQUISITION_REQ)
+def test_downloader_callback_failed(falcon_api, fake_time, req_store_get):
     failed_callback_req = dict(TEST_DOWNLOAD_CALLBACK)
     failed_callback_req['state'] = 'ERROR'
-    monkeypatch.setattr('time.time', lambda: 234.25)
 
-    _, headers = simulate_falcon_request(
+    __, headers = _simulate_falcon_post(
         api=falcon_api,
         path=DOWNLOAD_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
-        encoding='utf-8',
-        method='POST',
-        body=json.dumps(failed_callback_req),
-        headers=[('Authorization', TEST_AUTH_HEADER)]
+        data=failed_callback_req
     )
 
     assert headers.status == falcon.HTTP_200
 
     updated_request = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
     updated_request.state = 'ERROR'
-    updated_request.timestamps['ERROR'] = 234
+    updated_request.timestamps['ERROR'] = FAKE_TIMESTAMP
     falcon_api.mock_req_store.put.assert_called_with(updated_request)
 
 
 def test_downloader_callback_bad_request(falcon_api):
-    _, headers = simulate_falcon_request(
+    __, headers = _simulate_falcon_post(
         api=falcon_api,
         path=DOWNLOAD_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
-        encoding='utf-8',
-        method='POST',
-        body=json.dumps({'some': 'nonsense'}),
-        headers=[('Authorization', TEST_AUTH_HEADER)]
+        data={'some': 'nonsense'}
     )
     assert headers.status == falcon.HTTP_400
 
 
-def test_metadata_callback_ok(falcon_api, monkeypatch):
-    falcon_api.mock_req_store.get.return_value = copy.deepcopy(TEST_ACQUISITION_REQ)
-    monkeypatch.setattr('time.time', lambda: 456.25)
-
-    # TODO only an enum is sent there
-    _, headers = simulate_falcon_request(
+def test_metadata_callback_ok(falcon_api, fake_time, req_store_get):
+    __, headers = _simulate_falcon_post(
         api=falcon_api,
         path=METADATA_PARSER_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
-        encoding='utf-8',
-        method='POST',
-        body=json.dumps(TEST_METADATA_CALLBACK),
-        headers=[('Authorization', TEST_AUTH_HEADER)]
+        data=TEST_METADATA_CALLBACK
     )
 
     assert headers.status == falcon.HTTP_200
-    falcon_api.mock_req_store.get.assert_called_with(TEST_ACQUISITION_REQ.id)
     updated_request = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
     updated_request.state = 'FINISHED'
-    updated_request.timestamps['FINISHED'] = 456
+    updated_request.timestamps['FINISHED'] = FAKE_TIMESTAMP
     falcon_api.mock_req_store.put.assert_called_with(updated_request)
 
 
-def test_metadata_callback_failed(falcon_api, monkeypatch):
-    falcon_api.mock_req_store.get.return_value = copy.deepcopy(TEST_ACQUISITION_REQ)
-    monkeypatch.setattr('time.time', lambda: 567.25)
-
-    # TODO only an enum is sent there
-    _, headers = simulate_falcon_request(
+def test_metadata_callback_failed(falcon_api, fake_time, req_store_get):
+    __, headers = _simulate_falcon_post(
         api=falcon_api,
         path=METADATA_PARSER_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
-        encoding='utf-8',
-        method='POST',
-        body=json.dumps({'state': 'FAILED'}),
-        headers=[('Authorization', TEST_AUTH_HEADER)]
+        data={'state': 'FAILED'}
     )
 
     assert headers.status == falcon.HTTP_200
-    falcon_api.mock_req_store.get.assert_called_with(TEST_ACQUISITION_REQ.id)
     updated_request = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
     updated_request.state = 'ERROR'
-    updated_request.timestamps['ERROR'] = 567
+    updated_request.timestamps['ERROR'] = FAKE_TIMESTAMP
     falcon_api.mock_req_store.put.assert_called_with(updated_request)
 
 
 def test_metadata_callback_bad_request(falcon_api):
-    _, headers = simulate_falcon_request(
+    __, headers = _simulate_falcon_post(
         api=falcon_api,
         path=METADATA_PARSER_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
-        encoding='utf-8',
-        method='POST',
-        body=json.dumps({'some': 'nonsense'}),
-        headers=[('Authorization', TEST_AUTH_HEADER)]
+        data={'some': 'nonsense'}
     )
     assert headers.status == falcon.HTTP_400
 
@@ -265,4 +245,3 @@ def test_metadata_callback_bad_request(falcon_api):
 # TODO test deleting an entry
 # TODO test getting all entries for an org
 # TODO test getting all entries as an admin
-# TODO decrese code duplication
