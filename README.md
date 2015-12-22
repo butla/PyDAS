@@ -7,9 +7,8 @@ Python Data Acquisition Service
 ## TODO (necessary):
 1. Add rest of DAS endpoints (authorized): GET /rest/das/requests?orgs=id,id GET /rest/das/requests/{id}, DELETE /rest/das/requests/{id}
 1. Special handling of hdfs URIs
+1. Validate REDIS connection before starting workers.
 1. Split native and non-native requirements.
-1. Add manifest.yml.
-1. Add bumpversion and versioning.
 
 ## TODO (optional):
 1. test for logging.

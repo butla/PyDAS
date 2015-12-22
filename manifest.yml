@@ -1,0 +1,18 @@
+---
+applications:
+- name: pydas
+  command: gunicorn 'data_acquisition.app:get_app()' --bind :$PORT --enable-stdio-inheritance --workers `nproc`
+  memory: 512M
+  disk_quota: 256M
+  buildpack: python_buildpack
+  instances: 1
+  services:
+    - downloader
+    - metadataparser
+    - user-management
+    - requests-store
+    - sso
+  env:
+    LOG_LEVEL: "INFO"
+    # DO NOT TOUCH - version is changed automatically by Bumpversion
+    VERSION: "0.5.0"

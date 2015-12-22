@@ -62,6 +62,7 @@ def get_app():
         password=config.redis_password,
         db=0))
     queue = rq.Queue(connection=redis.Redis(
+        host=config.redis_host,
         port=config.redis_port,
         password=config.redis_password,
         db=1))
