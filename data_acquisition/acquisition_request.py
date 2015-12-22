@@ -13,6 +13,8 @@ class AcquisitionRequestStore:
     Abstraction over Redis for storage and retrieval of `AcquisitionRequest` objects.
     """
 
+    REDIS_HASH_NAME = 'requests'
+
     def __init__(self, redis_client):
         """
         :param `redis.Redis` redis_client: Redis client.
@@ -22,9 +24,9 @@ class AcquisitionRequestStore:
     def put(self, acquisition_req):
         """
         :param `AcquisitionRequest` acquisition_req:
-        :return:
         """
-        self._redis.set(
+        self._redis.hset(
+            self.REDIS_HASH_NAME,
             '{}:{}'.format(acquisition_req.orgUUID, acquisition_req.id),
             str(acquisition_req)
         )
@@ -32,12 +34,28 @@ class AcquisitionRequestStore:
     def get(self, req_id):
         """
         :param str req_id: Identifier of the individual request.
-        :return: The request with the give ID.
+        :return: The request with the given ID.
         :rtype: AcquisitionRequest
         """
-        keys = self._redis.keys('*:{}'.format(req_id))
-        req_json = json.loads(self._redis.get(keys[0]).decode())
+        # keys = self._redis.keys('*:{}'.format(req_id))
+        # req_json = json.loads(self._redis.get(keys[0]).decode())
+        entries = self._redis.hgetall(self.REDIS_HASH_NAME)
+        entry = next(value for key, value in entries.items() if key.endswith(req_id.encode()))
+        req_json = json.loads(entry.decode())
         return AcquisitionRequest(**req_json)
+
+    def get_for_org(self, org_id):
+        """
+        :param str org_id: Organization's UUID.
+        :return: All requests for the given organization.
+        :rtype: list[AcquisitionRequest]
+        """
+        entries = self._redis.hgetall(self.REDIS_HASH_NAME)
+        filtered = (value.decode() for key, value in entries.items()
+                    if key.startswith(org_id.encode()))
+        return [AcquisitionRequest(**json.loads(req_str)) for req_str in filtered]
+
+    # TODO get all (for admin only)
 
 
 class AcquisitionRequest:

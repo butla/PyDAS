@@ -75,7 +75,7 @@ TEST_ACQUISITION_REQ_STR = str(TEST_ACQUISITION_REQ)
 TEST_DOWNLOAD_CALLBACK = {
     'id': TEST_ACQUISITION_REQ_JSON['id'],
     'state': 'DONE',
-    'savedObjectId': 'fake-saved-id',
+    'savedObjectId': 'fake-guid/000000_1',
     'objectStoreId': 'hdfs://some-fake-hdfs-path',
 }
 

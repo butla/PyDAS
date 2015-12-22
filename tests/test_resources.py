@@ -11,11 +11,12 @@ from data_acquisition import DasConfig
 from data_acquisition.acquisition_request import AcquisitionRequest
 from data_acquisition.cf_app_utils.auth import USER_MANAGEMENT_PATH
 from data_acquisition.consts import (ACQUISITION_PATH, DOWNLOADER_PATH, DOWNLOAD_CALLBACK_PATH,
-                                     METADATA_PARSER_PATH, METADATA_PARSER_CALLBACK_PATH)
+                                     METADATA_PARSER_PATH, METADATA_PARSER_CALLBACK_PATH,
+                                     UPLOADER_REQUEST_PATH)
 from data_acquisition.resources import (AcquisitionRequestsResource, DownloadCallbackResource,
-                                        MetadataCallbackResource, get_download_callback_url,
-                                        get_metadata_callback_url, external_service_call,
-                                        SecretString)
+                                        UploaderResource, MetadataCallbackResource,
+                                        get_download_callback_url, get_metadata_callback_url,
+                                        external_service_call, SecretString)
 from .consts import (TEST_DOWNLOAD_REQUEST, TEST_DOWNLOAD_CALLBACK, TEST_ACQUISITION_REQ,
                      TEST_ACQUISITION_REQ_JSON, TEST_METADATA_CALLBACK, TEST_AUTH_HEADER,
                      TEST_ORG_UUID, FAKE_PERMISSION_URL, FAKE_PERMISSION_SERVICE_URL)
@@ -24,6 +25,7 @@ from .utils import dict_is_part_of, simulate_falcon_request
 
 FAKE_TIME = 234.25
 FAKE_TIMESTAMP = 234
+TEST_DAS_URL = 'https://my-fake-url'
 
 
 class MockApi(falcon.API):
@@ -36,7 +38,7 @@ class MockApi(falcon.API):
 @pytest.fixture(scope='function')
 def das_config():
     return DasConfig(
-        self_url='https://my-fake-url',
+        self_url=TEST_DAS_URL,
         port=12345,
         redis_host='redis.example.com',
         redis_port=54321,
@@ -51,19 +53,22 @@ def das_config():
 @pytest.fixture(scope='function')
 def falcon_api(das_config):
     api = MockApi()
+    standard_params = {
+        'req_store': api.mock_req_store,
+        'queue': api.mock_queue,
+        'config': das_config
+    }
     api.add_route(
         ACQUISITION_PATH,
-        AcquisitionRequestsResource(
-            req_store=api.mock_req_store,
-            queue=api.mock_queue,
-            config=das_config)
+        AcquisitionRequestsResource(**standard_params)
     )
     api.add_route(
         DOWNLOAD_CALLBACK_PATH,
-        DownloadCallbackResource(
-            req_store=api.mock_req_store,
-            queue=api.mock_queue,
-            config=das_config)
+        DownloadCallbackResource(**standard_params)
+    )
+    api.add_route(
+        UPLOADER_REQUEST_PATH,
+        UploaderResource(**standard_params)
     )
     api.add_route(
         METADATA_PARSER_CALLBACK_PATH,
@@ -148,7 +153,7 @@ def test_acquisition_request(falcon_api, das_config, fake_time):
 
     proper_downloader_req = {
         'source': TEST_DOWNLOAD_REQUEST['source'],
-        'callback': get_download_callback_url('https://my-fake-url', resp_json['id'])
+        'callback': get_download_callback_url(TEST_DAS_URL, resp_json['id'])
     }
     falcon_api.mock_queue.enqueue.assert_called_with(
         external_service_call,
@@ -179,8 +184,8 @@ def test_downloader_callback_ok(falcon_api, das_config, fake_time, req_store_get
         'category': TEST_ACQUISITION_REQ.category,
         'title': TEST_ACQUISITION_REQ.title,
         'id': TEST_ACQUISITION_REQ.id,
-        'idInObjectStore': TEST_DOWNLOAD_CALLBACK['objectStoreId'],
-        'callbackUrl': get_metadata_callback_url('https://my-fake-url', TEST_ACQUISITION_REQ.id)
+        'idInObjectStore': TEST_DOWNLOAD_CALLBACK['savedObjectId'],
+        'callbackUrl': get_metadata_callback_url(TEST_DAS_URL, TEST_ACQUISITION_REQ.id)
     }
 
     __, headers = _simulate_falcon_post(
@@ -222,15 +227,6 @@ def test_downloader_callback_failed(falcon_api, fake_time, req_store_get):
     falcon_api.mock_req_store.put.assert_called_with(updated_request)
 
 
-def test_downloader_callback_bad_request(falcon_api):
-    __, headers = _simulate_falcon_post(
-        api=falcon_api,
-        path=DOWNLOAD_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
-        data={'some': 'nonsense'}
-    )
-    assert headers.status == falcon.HTTP_400
-
-
 def test_metadata_callback_ok(falcon_api, fake_time, req_store_get):
     __, headers = _simulate_falcon_post(
         api=falcon_api,
@@ -259,14 +255,45 @@ def test_metadata_callback_failed(falcon_api, fake_time, req_store_get):
     falcon_api.mock_req_store.put.assert_called_with(updated_request)
 
 
-def test_metadata_callback_bad_request(falcon_api):
+def test_uploader_request_ok(falcon_api, das_config, fake_time):
+    test_uploader_req = dict(TEST_DOWNLOAD_REQUEST)
+    test_uploader_req.update({
+        'idInObjectStore': 'fake-guid/000000_1',
+        'objectStoreId': 'hdfs://some-fake-hdfs-path',
+    })
+
     __, headers = _simulate_falcon_post(
         api=falcon_api,
-        path=METADATA_PARSER_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
-        data={'some': 'nonsense'}
+        path=UPLOADER_REQUEST_PATH,
+        data=test_uploader_req
     )
-    assert headers.status == falcon.HTTP_400
 
+    assert headers.status == falcon.HTTP_200
+
+    stored_req = falcon_api.mock_req_store.put.call_args[0][0]
+    updated_request = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
+    updated_request.state = 'DOWNLOADED'
+    updated_request.timestamps['DOWNLOADED'] = FAKE_TIMESTAMP
+    updated_request.id = stored_req.id
+    assert stored_req == updated_request
+
+    proper_metadata_req = {
+        'orgUUID': TEST_ACQUISITION_REQ.orgUUID,
+        'publicRequest': TEST_ACQUISITION_REQ.publicRequest,
+        'source': TEST_ACQUISITION_REQ.source,
+        'category': TEST_ACQUISITION_REQ.category,
+        'title': TEST_ACQUISITION_REQ.title,
+        'id': stored_req.id,
+        'idInObjectStore': test_uploader_req['idInObjectStore'],
+        'callbackUrl': get_metadata_callback_url(TEST_DAS_URL, stored_req.id)
+    }
+
+    falcon_api.mock_queue.enqueue.assert_called_with(
+        external_service_call,
+        url=das_config.metadata_parser_url,
+        json=proper_metadata_req,
+        hidden_token=SecretString(TEST_AUTH_HEADER)
+    )
 
 # TODO test getting one entry for an org
 # TODO test deleting an entry

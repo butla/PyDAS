@@ -11,7 +11,7 @@ import falcon
 import requests
 
 from .acquisition_request import AcquisitionRequest
-from .consts import DOWNLOAD_CALLBACK_PATH, METADATA_PARSER_CALLBACK_PATH
+from .consts import DOWNLOAD_CALLBACK_PATH, METADATA_PARSER_CALLBACK_PATH, UPLOADER_REQUEST_PATH
 from .cf_app_utils.auth.falcon import FalconUserOrgAccessChecker
 
 LOG = logging.getLogger(__name__)
@@ -114,6 +114,49 @@ class DasResource:
         """
         return get_metadata_callback_url(self._config.self_url, req_id)
 
+    def _parse_request(self, req, validator, operation_name):
+        """
+        Parses and validates the body of a request.
+        :param `falcon.Request` req:
+        :param `cerberus.Validator` validator: Validator for the request.
+        :param operation_name: Name for the operation being performed on the request.
+        :return: Validated body of the request as JSON.
+        :rtype: dict
+        :raises `falcon.HTTPBadRequest`: When the parameters are invalid.
+        """
+        req_json = json.loads(req.stream.read().decode())
+        if not validator.validate(req_json):
+            err_msg = 'Errors in {} parameters: {}'.format(operation_name, validator.errors)
+            self._log.error(err_msg)
+            raise falcon.HTTPBadRequest('Invalid parameters', err_msg)
+        return req_json
+
+    def _enqueue_metadata_request(self, acquisition_req, id_in_object_store, req_auth):
+        """
+        Queues sending a request to Metadata Parser.
+        It will extract metadata from the downloaded file, make sure it gets indexed
+        and call a callback on this app.
+        :param AcquisitionRequest acquisition_req: The original acquisition request.
+        :param str id_in_object_store: Identifier for the dataset in a service storing it..
+        :param str req_auth: Value of Authorization header, the token.
+        """
+        metadata_parse_req = {
+            'orgUUID': acquisition_req.orgUUID,
+            'publicRequest': acquisition_req.publicRequest,
+            'source': acquisition_req.source,
+            'category': acquisition_req.category,
+            'title': acquisition_req.title,
+            'id': acquisition_req.id,
+            'idInObjectStore': id_in_object_store,
+            'callbackUrl': self._get_metadata_callback_url(acquisition_req.id)
+        }
+        self._queue.enqueue(
+            external_service_call,
+            url=self._config.metadata_parser_url,
+            json=metadata_parse_req,
+            hidden_token=SecretString(req_auth)
+        )
+
 
 class AcquisitionRequestsResource(DasResource):
 
@@ -147,6 +190,7 @@ class AcquisitionRequestsResource(DasResource):
         self._org_checker.validate_access(req.auth, [acquisition_req.orgUUID])
 
         self._req_store.put(acquisition_req)
+        # TODO if the URL is on HDFS this should enqueue to metadata and set downloaded state
         self._enqueue_downloader_request(acquisition_req, req.auth)
 
         resp.body = str(acquisition_req)
@@ -159,12 +203,7 @@ class AcquisitionRequestsResource(DasResource):
         :rtype: data_acquisition.requests.AcquisitionRequest
         :raises `falcon.HTTPBadRequest`: When the request is invalid.
         """
-        req_json = json.loads(req.stream.read().decode())
-        if not self._download_req_validator.validate(req_json):
-            err_msg = 'Errors in download parameters: {}'.format(
-                self._download_req_validator.errors)
-            self._log.error(err_msg)
-            raise falcon.HTTPBadRequest('Invalid parameters', err_msg)
+        req_json = self._parse_request(req, self._download_req_validator, 'download')
         acquisition_req = AcquisitionRequest(**req_json)
         acquisition_req.set_validated()
         return acquisition_req
@@ -216,47 +255,55 @@ class DownloadCallbackResource(DasResource):
         :param `falcon.Response` resp:
         :param str req_id: ID given to the original acquisition request
         """
-        req_json = json.loads(req.stream.read().decode())
-        if not self._callback_validator.validate(req_json):
-            err_msg = 'Errors in download callback parameters: {}'.format(
-                self._callback_validator.errors)
-            self._log.error(err_msg)
-            raise falcon.HTTPBadRequest('Invalid parameters', err_msg)
+        req_json = self._parse_request(req, self._callback_validator, 'download callback')
 
         acquisition_req = self._req_store.get(req_id)
         if req_json['state'] == 'DONE':
             acquisition_req.set_downloaded()
             self._req_store.put(acquisition_req)
-            self._enqueue_metadata_request(acquisition_req, req_json, req.auth)
+            self._enqueue_metadata_request(acquisition_req, req_json['savedObjectId'], req.auth)
         else:
             acquisition_req.set_error()
             self._req_store.put(acquisition_req)
 
-    def _enqueue_metadata_request(self, acquisition_req, download_callback, req_auth):
+
+class UploaderResource(DasResource):
+
+    """
+    Resource accepting requests from Uploader.
+    """
+
+    def __init__(self, req_store, queue, config):
         """
-        Queues sending a request to Metadata Parser.
-        It will extract metadata from the downloaded file, make sure it gets indexed
-        and call a callback on this app.
-        :param AcquisitionRequest acquisition_req: The original acquisition request.
-        :param dict download_callback: Callback request gotten from Downloader.
-        :param str req_auth: Value of Authorization header, the token.
+        :param `.requests.AcquisitionRequestStore` req_store:
+        :param `rq.Queue` queue:
+        :param `data_acquisition.DasConfig` config: Configuration object for the application.
         """
-        metadata_parse_req = {
-            'orgUUID': acquisition_req.orgUUID,
-            'publicRequest': acquisition_req.publicRequest,
-            'source': acquisition_req.source,
-            'category': acquisition_req.category,
-            'title': acquisition_req.title,
-            'id': acquisition_req.id,
-            'idInObjectStore': download_callback['objectStoreId'],
-            'callbackUrl': self._get_metadata_callback_url(acquisition_req.id)
-        }
-        self._queue.enqueue(
-            external_service_call,
-            url=self._config.metadata_parser_url,
-            json=metadata_parse_req,
-            hidden_token=SecretString(req_auth)
-        )
+        super().__init__(req_store, queue, config)
+        self._uploader_req_validator = Validator(schema={
+            'category': {'type': 'string', 'required': True},
+            'orgUUID': {'type': 'string', 'required': True},
+            'publicRequest': {'type': 'boolean', 'required': True},
+            'source': {'type': 'string', 'required': True},
+            'title': {'type': 'string', 'required': True},
+            'idInObjectStore': {'type': 'string', 'required': True},
+            'objectStoreId': {'type': 'string', 'required': False}
+        })
+
+    def on_post(self, req, resp):
+        """
+        Callback after download of the data set.
+        This will trigger a request to Metadata Parser.
+        :param `falcon.Request` req:
+        :param `falcon.Response` resp:
+        """
+        req_json = self._parse_request(req, self._uploader_req_validator, 'uploader request')
+
+        acquisition_req = AcquisitionRequest(**req_json)
+        acquisition_req.set_downloaded()
+
+        self._req_store.put(acquisition_req)
+        self._enqueue_metadata_request(acquisition_req, req_json['idInObjectStore'], req.auth)
 
 
 class MetadataCallbackResource(DasResource):
@@ -284,12 +331,7 @@ class MetadataCallbackResource(DasResource):
         :param `falcon.Response` resp:
         :param str req_id: ID given to the original acquisition request
         """
-        req_json = json.loads(req.stream.read().decode())
-        if not self._callback_validator.validate(req_json):
-            err_msg = 'Errors in metadata callback parameters: {}'.format(
-                self._callback_validator.errors)
-            self._log.error(err_msg)
-            raise falcon.HTTPBadRequest('Invalid parameters', err_msg)
+        req_json = self._parse_request(req, self._callback_validator, 'metadata callback')
 
         acquisition_req = self._req_store.get(req_id)
         if req_json['state'] == 'DONE':

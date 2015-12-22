@@ -1,14 +1,16 @@
 import json
+from urllib.parse import urljoin
+
 import requests
 
-from data_acquisition.consts import ACQUISITION_PATH
+from data_acquisition.consts import ACQUISITION_PATH, UPLOADER_REQUEST_PATH
 from data_acquisition.resources import get_download_callback_url, get_metadata_callback_url
 from .consts import (TEST_AUTH_HEADER, TEST_DOWNLOAD_REQUEST, TEST_ACQUISITION_REQ,
                      TEST_DOWNLOAD_CALLBACK, TEST_METADATA_CALLBACK)
 from .utils import dict_is_part_of
 
 
-def test_acquisition_request(requests_store, das, downloader_imposter):
+def test_acquisition_request(req_store_real, das, downloader_imposter):
     response = requests.post(
         das.base_url + ACQUISITION_PATH,
         json=TEST_DOWNLOAD_REQUEST,
@@ -17,7 +19,7 @@ def test_acquisition_request(requests_store, das, downloader_imposter):
     req_id = response.json()['id']
 
     assert response.status_code == 202
-    assert requests_store.get(req_id).state == 'VALIDATED'
+    assert req_store_real.get(req_id).state == 'VALIDATED'
 
     request_to_imposter = downloader_imposter.wait_for_requests()[0]
     assert json.loads(request_to_imposter.body) == {
@@ -27,8 +29,8 @@ def test_acquisition_request(requests_store, das, downloader_imposter):
     assert dict_is_part_of(request_to_imposter.headers, {'authorization': TEST_AUTH_HEADER})
 
 
-def test_download_callback(requests_store, das, metadata_parser_imposter):
-    requests_store.put(TEST_ACQUISITION_REQ)
+def test_download_callback(req_store_real, das, metadata_parser_imposter):
+    req_store_real.put(TEST_ACQUISITION_REQ)
     req_id = TEST_ACQUISITION_REQ.id
 
     response = requests.post(
@@ -38,7 +40,7 @@ def test_download_callback(requests_store, das, metadata_parser_imposter):
     )
 
     assert response.status_code == 200
-    assert requests_store.get(req_id).state == 'DOWNLOADED'
+    assert req_store_real.get(req_id).state == 'DOWNLOADED'
 
     request_to_imposter = metadata_parser_imposter.wait_for_requests()[0]
     proper_metadata_req = {
@@ -48,7 +50,7 @@ def test_download_callback(requests_store, das, metadata_parser_imposter):
         'category': TEST_ACQUISITION_REQ.category,
         'title': TEST_ACQUISITION_REQ.title,
         'id': req_id,
-        'idInObjectStore': TEST_DOWNLOAD_CALLBACK['objectStoreId'],
+        'idInObjectStore': TEST_DOWNLOAD_CALLBACK['savedObjectId'],
         'callbackUrl': get_metadata_callback_url('https://das.example.com', req_id)
     }
 
@@ -56,8 +58,8 @@ def test_download_callback(requests_store, das, metadata_parser_imposter):
     assert dict_is_part_of(request_to_imposter.headers, {'authorization': TEST_AUTH_HEADER})
 
 
-def test_metadata_callback(requests_store, das):
-    requests_store.put(TEST_ACQUISITION_REQ)
+def test_metadata_callback(req_store_real, das):
+    req_store_real.put(TEST_ACQUISITION_REQ)
     req_id = TEST_ACQUISITION_REQ.id
 
     response = requests.post(
@@ -67,7 +69,39 @@ def test_metadata_callback(requests_store, das):
     )
 
     assert response.status_code == 200
-    assert requests_store.get(req_id).state == 'FINISHED'
+    assert req_store_real.get(req_id).state == 'FINISHED'
 
-# TODO test getting all entries for an org, a single entry, all entries
+
+def test_uploader_request(req_store_real, das, metadata_parser_imposter):
+    test_uploader_req = dict(TEST_DOWNLOAD_REQUEST)
+    test_uploader_req.update({
+        'idInObjectStore': 'fake-guid/000000_1',
+        'objectStoreId': 'hdfs://some-fake-hdfs-path',
+    })
+
+    response = requests.post(
+        urljoin(das.base_url, UPLOADER_REQUEST_PATH),
+        json=test_uploader_req,
+        headers={'Authorization': TEST_AUTH_HEADER}
+    )
+
+    assert response.status_code == 200
+    stored_request = req_store_real.get_for_org(test_uploader_req['orgUUID'])[0]
+    assert stored_request.state == 'DOWNLOADED'
+
+    request_to_imposter = metadata_parser_imposter.wait_for_requests()[0]
+    proper_metadata_req = {
+        'orgUUID': TEST_ACQUISITION_REQ.orgUUID,
+        'publicRequest': TEST_ACQUISITION_REQ.publicRequest,
+        'source': TEST_ACQUISITION_REQ.source,
+        'category': TEST_ACQUISITION_REQ.category,
+        'title': TEST_ACQUISITION_REQ.title,
+        'id': stored_request.id,
+        'idInObjectStore': test_uploader_req['idInObjectStore'],
+        'callbackUrl': get_metadata_callback_url('https://das.example.com', stored_request.id)
+    }
+
+    assert json.loads(request_to_imposter.body) == proper_metadata_req
+    assert dict_is_part_of(request_to_imposter.headers, {'authorization': TEST_AUTH_HEADER})
+
 # TODO test that middleware is working (invalid token)

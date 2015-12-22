@@ -86,7 +86,7 @@ def redis_client(request, redis_client_session):
 
 
 @pytest.fixture(scope='function')
-def requests_store(redis_client):
+def req_store_real(redis_client):
     return AcquisitionRequestStore(redis_client)
 
 
@@ -119,7 +119,6 @@ def metadata_parser_imposter(mountebank):
     return mountebank.add_imposter_simple(path=METADATA_PARSER_PATH, method='POST')
 
 
-# TODO make this act like the actual User Management
 @pytest.fixture(scope='function')
 def user_management_imposter(mountebank):
     imposter_cfg = {

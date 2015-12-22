@@ -15,10 +15,11 @@ import rq
 from .cf_app_utils.auth.falcon import JwtMiddleware
 from .cf_app_utils import configure_logging
 from .config import DasConfig
-from .consts import ACQUISITION_PATH, DOWNLOAD_CALLBACK_PATH, METADATA_PARSER_CALLBACK_PATH
+from .consts import (ACQUISITION_PATH, DOWNLOAD_CALLBACK_PATH, UPLOADER_REQUEST_PATH,
+                     METADATA_PARSER_CALLBACK_PATH)
 from .acquisition_request import AcquisitionRequestStore
 from .resources import (AcquisitionRequestsResource, DownloadCallbackResource,
-                        MetadataCallbackResource)
+                        UploaderResource, MetadataCallbackResource)
 
 
 def start_queue_worker(queue):
@@ -72,6 +73,9 @@ def get_app():
     application.add_route(
         DOWNLOAD_CALLBACK_PATH,
         DownloadCallbackResource(requests_store, queue, config))
+    application.add_route(
+        UPLOADER_REQUEST_PATH,
+        UploaderResource(requests_store, queue, config))
     application.add_route(
         METADATA_PARSER_CALLBACK_PATH,
         MetadataCallbackResource(requests_store, config))
