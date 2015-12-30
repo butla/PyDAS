@@ -158,7 +158,7 @@ def test_acquisition_request(falcon_api, das_config, fake_time):
     falcon_api.mock_queue.enqueue.assert_called_with(
         external_service_call,
         url=das_config.downloader_url,
-        json=proper_downloader_req,
+        data=proper_downloader_req,
         hidden_token=SecretString(TEST_AUTH_HEADER)
     )
 
@@ -199,7 +199,7 @@ def test_downloader_callback_ok(falcon_api, das_config, fake_time, req_store_get
     falcon_api.mock_queue.enqueue.assert_called_with(
         external_service_call,
         url=das_config.metadata_parser_url,
-        json=proper_metadata_req,
+        data=proper_metadata_req,
         hidden_token=SecretString(TEST_AUTH_HEADER)
     )
 
@@ -291,7 +291,7 @@ def test_uploader_request_ok(falcon_api, das_config, fake_time):
     falcon_api.mock_queue.enqueue.assert_called_with(
         external_service_call,
         url=das_config.metadata_parser_url,
-        json=proper_metadata_req,
+        data=proper_metadata_req,
         hidden_token=SecretString(TEST_AUTH_HEADER)
     )
 

@@ -21,6 +21,11 @@ REDIS_IMAGE_TAG = '2.8.22'
 REDIS_IMAGE = '{}:{}'.format(REDIS_REPO, REDIS_IMAGE_TAG)
 DEFAULT_REDIS_PORT = 6379
 
+DOWNLOADER_STUB_PORT = port_for.select_random()
+METADATAPARSER_STUB_PORT = port_for.select_random()
+USER_MANAGEMENT_STUB_PORT = port_for.select_random()
+UAA_STUB_PORT = port_for.select_random()
+
 
 def download_image_if_missing(docker_client):
     redis_images = docker_client.images(name=REDIS_REPO)
@@ -90,39 +95,38 @@ def req_store_real(redis_client):
     return AcquisitionRequestStore(redis_client)
 
 
-@pytest.fixture(scope='session')
-def mountebank_session(request):
-    def fin():
-        mb.stop()
-    request.addfinalizer(fin)
-
+@pytest.yield_fixture(scope='session')
+def mountebank():
     mb = Mountebank()
     mb.start()
-    return mb
+    yield mb
+    mb.stop()
 
 
-@pytest.fixture(scope='function')
-def mountebank(request, mountebank_session):
-    def fin():
-        mountebank_session.reset()
-    request.addfinalizer(fin)
-    return mountebank_session
-
-
-@pytest.fixture(scope='function')
+@pytest.yield_fixture(scope='function')
 def downloader_imposter(mountebank):
-    return mountebank.add_imposter_simple(path=DOWNLOADER_PATH, method='POST')
+    imposter = mountebank.add_imposter_simple(
+        port=DOWNLOADER_STUB_PORT,
+        path=DOWNLOADER_PATH,
+        method='POST')
+    yield imposter
+    imposter.destroy()
 
 
-@pytest.fixture(scope='function')
+@pytest.yield_fixture(scope='function')
 def metadata_parser_imposter(mountebank):
-    return mountebank.add_imposter_simple(path=METADATA_PARSER_PATH, method='POST')
+    imposter = mountebank.add_imposter_simple(
+        port=METADATAPARSER_STUB_PORT,
+        path=METADATA_PARSER_PATH,
+        method='POST')
+    yield imposter
+    imposter.destroy()
 
 
-@pytest.fixture(scope='function')
+@pytest.yield_fixture(scope='function')
 def user_management_imposter(mountebank):
     imposter_cfg = {
-        'port': port_for.select_random(),
+        'port': USER_MANAGEMENT_STUB_PORT,
         'protocol': 'http',
         'stubs': [
             {
@@ -159,36 +163,36 @@ def user_management_imposter(mountebank):
             }
         ]
     }
-    return mountebank.add_imposter(imposter_cfg)
+    imposter = mountebank.add_imposter(imposter_cfg)
+    yield imposter
+    imposter.destroy()
 
 
-@pytest.fixture(scope='function')
+@pytest.yield_fixture(scope='session')
 def uaa_imposter(mountebank):
-    return mountebank.add_imposter_simple(
+    imposter = mountebank.add_imposter_simple(
+        port=UAA_STUB_PORT,
         method='GET',
         response=json.dumps({'value': RSA_2048_PUB_KEY}))
+    yield imposter
+    imposter.destroy()
 
 
-@pytest.fixture(scope='function')
-def vcap_services(
-        redis_port,
-        downloader_imposter,
-        metadata_parser_imposter,
-        user_management_imposter,
-        uaa_imposter):
+@pytest.fixture(scope='session')
+def vcap_services(redis_port):
     return TEST_VCAP_SERVICES_TEMPLATE.format(
         redis_port=redis_port,
         redis_password="null",
         redis_host='localhost',
-        downloader_host='localhost:{}'.format(downloader_imposter.port),
-        metadata_parser_host='localhost:{}'.format(metadata_parser_imposter.port),
-        user_management_host='localhost:{}'.format(user_management_imposter.port),
-        verification_key_url='http://localhost:{}'.format(uaa_imposter.port)
+        downloader_host='localhost:{}'.format(DOWNLOADER_STUB_PORT),
+        metadata_parser_host='localhost:{}'.format(METADATAPARSER_STUB_PORT),
+        user_management_host='localhost:{}'.format(USER_MANAGEMENT_STUB_PORT),
+        verification_key_url='http://localhost:{}'.format(UAA_STUB_PORT)
     )
 
 
-@pytest.fixture(scope='function')
-def das(request, vcap_services):
+@pytest.fixture(scope='session')
+def das_session(request, vcap_services, uaa_imposter):
     def fin():
         das_service.stop()
     request.addfinalizer(fin)
@@ -211,3 +215,11 @@ def das(request, vcap_services):
 
     das_service.start()
     return das_service
+
+
+@pytest.fixture(scope='function')
+def das(das_session,
+        downloader_imposter,
+        metadata_parser_imposter,
+        user_management_imposter):
+    return das_session

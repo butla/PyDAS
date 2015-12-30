@@ -1,10 +1,12 @@
 import json
+from unittest.mock import patch
 
 import falcon
 from falcon import Request
 from falcon import Response
 from falcon.testing.helpers import create_environ
 import pytest
+import requests.exceptions
 import responses
 
 from .consts import (RSA_2048_PUB_KEY, TEST_AUTH_HEADER, TEST_ADMIN_AUTH_HEADER, TEST_ORG_UUID,
@@ -28,8 +30,17 @@ def test_oauth_middleware_init_ok():
     assert auth_middleware._verification_key == RSA_2048_PUB_KEY
 
 
+@patch('data_acquisition.cf_app_utils.auth.utils.requests.get')
+def test_oauth_middleware_init_fail(mock_get):
+    mock_get.side_effect = requests.exceptions.ConnectionError('test exception')
+    auth_middleware = JwtMiddleware()
+
+    with pytest.raises(UaaError):
+        auth_middleware.initialize('http://some-fake-url')
+
+
 @responses.activate
-def test_oauth_middleware_init_fail():
+def test_oauth_middleware_init_bad_response():
     fake_key_url = 'http://fake-url'
     responses.add(responses.GET, fake_key_url, status=404)
 

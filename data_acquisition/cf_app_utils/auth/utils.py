@@ -15,7 +15,13 @@ def get_uaa_key(uaa_key_url):
     :raises `UaaError`: Getting the key from UAA failed.
     :rtype: str
     """
-    response = requests.get(uaa_key_url)
+    try:
+        response = requests.get(uaa_key_url)
+    except requests.exceptions.ConnectionError as ex:
+        msg = 'Failed to connect to UAA at {}'.format(uaa_key_url)
+        _log.exception(msg)
+        raise UaaError(msg) from ex
+
     if response.status_code != 200:
         msg = "Couldn't get UAA's public key.\nResponse code: {}\nMessage: {}".format(
             response.status_code,
