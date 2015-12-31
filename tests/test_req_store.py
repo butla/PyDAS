@@ -4,7 +4,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from data_acquisition.acquisition_request import AcquisitionRequest, AcquisitionRequestStore
+from data_acquisition.acquisition_request import (AcquisitionRequest, AcquisitionRequestStore,
+                                                  RequestNotFoundError)
 from .consts import TEST_ACQUISITION_REQ, TEST_ACQUISITION_REQ_STR, TEST_ACQUISITION_REQ_JSON
 
 
@@ -18,25 +19,44 @@ def req_store(redis_mock):
     return AcquisitionRequestStore(redis_mock)
 
 
-def test_get(req_store_real, redis_client):
+def _get_full_req_id(acquisition_req):
+    return '{}:{}'.format(acquisition_req.orgUUID, acquisition_req.id)
+
+
+@pytest.fixture
+def stored_request_real(redis_client):
     new_req = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
     new_req.timestamps['VALIDATED'] = 1449523225
-
     redis_client.hset(
         AcquisitionRequestStore.REDIS_HASH_NAME,
-        'fake-org-uuid:fake-id',
+        _get_full_req_id(TEST_ACQUISITION_REQ),
         str(new_req))
-    acquisition_req = req_store_real.get('fake-id')
+    return new_req
 
-    assert acquisition_req == new_req
+
+def test_get(req_store_real, stored_request_real):
+    acquisition_req = req_store_real.get(TEST_ACQUISITION_REQ.id)
+    assert acquisition_req == stored_request_real
+
+
+def test_get_not_found(req_store_real):
+    with pytest.raises(RequestNotFoundError):
+        req_store_real.get('fake-id')
 
 
 def test_put(req_store, redis_mock):
     req_store.put(TEST_ACQUISITION_REQ)
     redis_mock.hset.assert_called_with(
         AcquisitionRequestStore.REDIS_HASH_NAME,
-        'fake-org-uuid:fake-id',
+        _get_full_req_id(TEST_ACQUISITION_REQ),
         TEST_ACQUISITION_REQ_STR)
+
+
+def test_delete(req_store_real, redis_client, stored_request_real):
+    req_store_real.delete(TEST_ACQUISITION_REQ.id)
+    assert not redis_client.hexists(
+        AcquisitionRequestStore.REDIS_HASH_NAME,
+        _get_full_req_id(TEST_ACQUISITION_REQ))
 
 
 def _get_store_id(acquisition_req):

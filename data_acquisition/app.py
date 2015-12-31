@@ -16,10 +16,10 @@ from .cf_app_utils.auth.falcon import JwtMiddleware
 from .cf_app_utils import configure_logging
 from .config import DasConfig
 from .consts import (ACQUISITION_PATH, DOWNLOAD_CALLBACK_PATH, UPLOADER_REQUEST_PATH,
-                     METADATA_PARSER_CALLBACK_PATH)
+                     METADATA_PARSER_CALLBACK_PATH, GET_REQUEST_PATH)
 from .acquisition_request import AcquisitionRequestStore
-from .resources import (AcquisitionRequestsResource, DownloadCallbackResource,
-                        UploaderResource, MetadataCallbackResource)
+from .resources import (AcquisitionRequestsResource, SingleAcquisitionRequestResource,
+                        DownloadCallbackResource, UploaderResource, MetadataCallbackResource)
 
 
 def start_queue_worker(queue):
@@ -46,6 +46,31 @@ def start_queue_worker(queue):
     queue_worker.start()
 
 
+def add_resources_to_routes(application, requests_store, queue, config):
+    """
+    Creates REST resources for the application and puts them on proper paths.
+    :param `falcon.API` application: A Falcon application.
+    :param `.acquisition_request.AcquisitionRequestStore` req_store:
+    :param `rq.Queue` queue:
+    :param `data_acquisition.DasConfig` config: Configuration object for the application.
+    """
+    application.add_route(
+        ACQUISITION_PATH,
+        AcquisitionRequestsResource(requests_store, queue, config))
+    application.add_route(
+        GET_REQUEST_PATH,
+        SingleAcquisitionRequestResource(requests_store))
+    application.add_route(
+        DOWNLOAD_CALLBACK_PATH,
+        DownloadCallbackResource(requests_store, queue, config))
+    application.add_route(
+        UPLOADER_REQUEST_PATH,
+        UploaderResource(requests_store, queue, config))
+    application.add_route(
+        METADATA_PARSER_CALLBACK_PATH,
+        MetadataCallbackResource(requests_store, config))
+
+
 def get_app():
     """
     To be used by WSGI server.
@@ -68,18 +93,7 @@ def get_app():
         db=1))
 
     application = falcon.API(middleware=auth_middleware)
-    application.add_route(
-        ACQUISITION_PATH,
-        AcquisitionRequestsResource(requests_store, queue, config))
-    application.add_route(
-        DOWNLOAD_CALLBACK_PATH,
-        DownloadCallbackResource(requests_store, queue, config))
-    application.add_route(
-        UPLOADER_REQUEST_PATH,
-        UploaderResource(requests_store, queue, config))
-    application.add_route(
-        METADATA_PARSER_CALLBACK_PATH,
-        MetadataCallbackResource(requests_store, config))
+    add_resources_to_routes(application, requests_store, queue, config)
 
     start_queue_worker(queue)
     return application

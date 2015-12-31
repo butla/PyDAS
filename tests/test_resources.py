@@ -8,14 +8,13 @@ import falcon
 import pytest
 
 from data_acquisition import DasConfig
-from data_acquisition.acquisition_request import AcquisitionRequest
+from data_acquisition.acquisition_request import AcquisitionRequest, RequestNotFoundError
+import data_acquisition.app
 from data_acquisition.cf_app_utils.auth import USER_MANAGEMENT_PATH
 from data_acquisition.consts import (ACQUISITION_PATH, DOWNLOADER_PATH, DOWNLOAD_CALLBACK_PATH,
                                      METADATA_PARSER_PATH, METADATA_PARSER_CALLBACK_PATH,
-                                     UPLOADER_REQUEST_PATH)
-from data_acquisition.resources import (AcquisitionRequestsResource, DownloadCallbackResource,
-                                        UploaderResource, MetadataCallbackResource,
-                                        get_download_callback_url, get_metadata_callback_url,
+                                     UPLOADER_REQUEST_PATH, GET_REQUEST_PATH)
+from data_acquisition.resources import (get_download_callback_url, get_metadata_callback_url,
                                         external_service_call, SecretString)
 from .consts import (TEST_DOWNLOAD_REQUEST, TEST_DOWNLOAD_CALLBACK, TEST_ACQUISITION_REQ,
                      TEST_ACQUISITION_REQ_JSON, TEST_METADATA_CALLBACK, TEST_AUTH_HEADER,
@@ -53,29 +52,11 @@ def das_config():
 @pytest.fixture(scope='function')
 def falcon_api(das_config):
     api = MockApi()
-    standard_params = {
-        'req_store': api.mock_req_store,
-        'queue': api.mock_queue,
-        'config': das_config
-    }
-    api.add_route(
-        ACQUISITION_PATH,
-        AcquisitionRequestsResource(**standard_params)
-    )
-    api.add_route(
-        DOWNLOAD_CALLBACK_PATH,
-        DownloadCallbackResource(**standard_params)
-    )
-    api.add_route(
-        UPLOADER_REQUEST_PATH,
-        UploaderResource(**standard_params)
-    )
-    api.add_route(
-        METADATA_PARSER_CALLBACK_PATH,
-        MetadataCallbackResource(
-            req_store=api.mock_req_store,
-            config=das_config)
-    )
+    data_acquisition.app.add_resources_to_routes(
+        api,
+        api.mock_req_store,
+        api.mock_queue,
+        das_config)
     return api
 
 
@@ -295,7 +276,62 @@ def test_uploader_request_ok(falcon_api, das_config, fake_time):
         hidden_token=SecretString(TEST_AUTH_HEADER)
     )
 
-# TODO test getting one entry for an org
-# TODO test deleting an entry
+
+def _simulate_falcon_get(api, path, query_string=''):
+    resp_body, headers = simulate_falcon_request(
+        api=api,
+        path=path,
+        query_string=query_string,
+        encoding='utf-8',
+        method='GET',
+        headers=[('Authorization', TEST_AUTH_HEADER)]
+    )
+    resp_json = json.loads(resp_body) if resp_body else None
+    return resp_json, headers
+
+
+def test_get_request(falcon_api, req_store_get):
+    resp_json, headers = _simulate_falcon_get(
+        api=falcon_api,
+        path=GET_REQUEST_PATH.format(req_id=TEST_ACQUISITION_REQ.id))
+    assert headers.status == falcon.HTTP_200
+    assert AcquisitionRequest(**resp_json) == TEST_ACQUISITION_REQ
+
+
+def test_get_request_not_found(falcon_api):
+    falcon_api.mock_req_store.get.side_effect = RequestNotFoundError()
+    __, headers = _simulate_falcon_get(
+        api=falcon_api,
+        path=GET_REQUEST_PATH.format(req_id='some-fake-id'))
+    assert headers.status == falcon.HTTP_404
+
+
+def _simulate_falcon_delete(api, path):
+    __, headers = simulate_falcon_request(
+        api=api,
+        path=path,
+        encoding='utf-8',
+        method='DELETE',
+        headers=[('Authorization', TEST_AUTH_HEADER)]
+    )
+    return headers
+
+
+def test_delete_request(falcon_api):
+    headers = _simulate_falcon_delete(
+        falcon_api,
+        GET_REQUEST_PATH.format(req_id=TEST_ACQUISITION_REQ.id))
+    assert headers.status == falcon.HTTP_200
+
+
+def test_delete_request_not_found(falcon_api):
+    falcon_api.mock_req_store.delete.side_effect = RequestNotFoundError()
+    headers = _simulate_falcon_delete(
+        falcon_api,
+        GET_REQUEST_PATH.format(req_id='fake-id'))
+    assert headers.status == falcon.HTTP_404
+
+# TODO test get unauthorized
+# TODO test delete unauthorized
 # TODO test getting all entries for an org
-# TODO test getting all entries as an admin
+# TODO test getting all entries unauthorized

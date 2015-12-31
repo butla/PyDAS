@@ -7,6 +7,13 @@ import time
 import uuid
 
 
+class RequestNotFoundError(Exception):
+    """
+    Signals that a request wasn't found in a `AcquisitionRequestStore`.
+    """
+    pass
+
+
 class AcquisitionRequestStore:
 
     """
@@ -36,13 +43,24 @@ class AcquisitionRequestStore:
         :param str req_id: Identifier of the individual request.
         :return: The request with the given ID.
         :rtype: AcquisitionRequest
+        :raises RequestNotFoundError: Request with the given ID doesn't exist.
         """
-        # keys = self._redis.keys('*:{}'.format(req_id))
-        # req_json = json.loads(self._redis.get(keys[0]).decode())
         entries = self._redis.hgetall(self.REDIS_HASH_NAME)
-        entry = next(value for key, value in entries.items() if key.endswith(req_id.encode()))
+        try:
+            entry = next(value for key, value in entries.items() if key.endswith(req_id.encode()))
+        except StopIteration:
+            raise RequestNotFoundError('No request for ID {}'.format(req_id))
         req_json = json.loads(entry.decode())
         return AcquisitionRequest(**req_json)
+
+    def delete(self, req_id):
+        """
+        :param str req_id: Identifier of the individual request.
+        :raises RequestNotFoundError: Request with the given ID doesn't exist.
+        """
+        req = self.get(req_id)
+        full_id = '{}:{}'.format(req.orgUUID, req.id)
+        self._redis.hdel(self.REDIS_HASH_NAME, full_id)
 
     def get_for_org(self, org_id):
         """

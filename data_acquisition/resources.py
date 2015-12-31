@@ -10,7 +10,7 @@ from cerberus import Validator
 import falcon
 import requests
 
-from .acquisition_request import AcquisitionRequest
+from .acquisition_request import AcquisitionRequest, RequestNotFoundError
 from .consts import DOWNLOAD_CALLBACK_PATH, METADATA_PARSER_CALLBACK_PATH
 from .cf_app_utils.auth.falcon import FalconUserOrgAccessChecker
 
@@ -89,7 +89,7 @@ class DasResource:
 
     def __init__(self, req_store, queue, config):
         """
-        :param `.requests.AcquisitionRequestStore` req_store:
+        :param `.acquisition_request.AcquisitionRequestStore` req_store:
         :param `rq.Queue` queue:
         :param `data_acquisition.DasConfig` config: Configuration object for the application.
         """
@@ -166,7 +166,7 @@ class AcquisitionRequestsResource(DasResource):
 
     def __init__(self, req_store, queue, config):
         """
-        :param `.requests.AcquisitionRequestStore` req_store:
+        :param `.acquisition_request.AcquisitionRequestStore` req_store:
         :param `rq.Queue` queue:
         :param `data_acquisition.DasConfig` config: Configuration object for the application.
         """
@@ -200,7 +200,7 @@ class AcquisitionRequestsResource(DasResource):
         """
         :param `falcon.Request` req:
         :returns: A parsed acquisition request sent to the service.
-        :rtype: data_acquisition.requests.AcquisitionRequest
+        :rtype: `.acquisition_request.AcquisitionRequestStore`
         :raises `falcon.HTTPBadRequest`: When the request is invalid.
         """
         req_json = self._parse_request(req, self._download_req_validator, 'download')
@@ -227,6 +227,43 @@ class AcquisitionRequestsResource(DasResource):
         )
 
 
+class SingleAcquisitionRequestResource():
+
+    """
+    Resource for getting and deleting a single acquisition request.
+    """
+
+    def __init__(self, req_store):
+        """
+        :param `.acquisition_request.AcquisitionRequestStore` req_store:
+        """
+        self._req_store = req_store
+
+    def on_get(self, req, resp, req_id):
+        """
+        Getting a single acquisition request with its current status.
+        :param `falcon.Request` req:
+        :param `falcon.Response` resp:
+        :param str req_id: Request's ID.
+        """
+        try:
+            resp.body = str(self._req_store.get(req_id))
+        except RequestNotFoundError:
+            resp.status = falcon.HTTP_NOT_FOUND
+
+    def on_delete(self, req, resp, req_id):
+        """
+        Getting a single acquisition request with its current status.
+        :param `falcon.Request` req:
+        :param `falcon.Response` resp:
+        :param str req_id: Request's ID.
+        """
+        try:
+            self._req_store.delete(req_id)
+        except RequestNotFoundError:
+            resp.status = falcon.HTTP_NOT_FOUND
+
+
 class DownloadCallbackResource(DasResource):
 
     """
@@ -235,7 +272,7 @@ class DownloadCallbackResource(DasResource):
 
     def __init__(self, req_store, queue, config):
         """
-        :param `.requests.AcquisitionRequestStore` req_store:
+        :param `.acquisition_request.AcquisitionRequestStore` req_store:
         :param `rq.Queue` queue:
         :param `data_acquisition.DasConfig` config: Configuration object for the application.
         """
@@ -275,7 +312,7 @@ class UploaderResource(DasResource):
 
     def __init__(self, req_store, queue, config):
         """
-        :param `.requests.AcquisitionRequestStore` req_store:
+        :param `.acquisition_request.AcquisitionRequestStore` req_store:
         :param `rq.Queue` queue:
         :param `data_acquisition.DasConfig` config: Configuration object for the application.
         """
@@ -314,7 +351,7 @@ class MetadataCallbackResource(DasResource):
 
     def __init__(self, req_store, config):
         """
-        :param `.requests.AcquisitionRequestStore` req_store:
+        :param `.acquisition_request.AcquisitionRequestStore` req_store:
         :param `data_acquisition.DasConfig` config: Configuration object for the application.
         """
         # TODO this class should shouldn't inherit DasResource, maybe change it to composition
@@ -340,3 +377,5 @@ class MetadataCallbackResource(DasResource):
         else:
             acquisition_req.set_error()
             self._req_store.put(acquisition_req)
+
+# TODO split this file into smaller ones
