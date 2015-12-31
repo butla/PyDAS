@@ -30,7 +30,7 @@ class AcquisitionRequestStore:
 
     def put(self, acquisition_req):
         """
-        :param `AcquisitionRequest` acquisition_req:
+        :param `AcquisitionRequest` acquisition_req: A request that will be put in store.
         """
         self._redis.hset(
             self.REDIS_HASH_NAME,
@@ -53,14 +53,13 @@ class AcquisitionRequestStore:
         req_json = json.loads(entry.decode())
         return AcquisitionRequest(**req_json)
 
-    def delete(self, req_id):
+    def delete(self, acquisition_req):
         """
-        :param str req_id: Identifier of the individual request.
-        :raises RequestNotFoundError: Request with the given ID doesn't exist.
+        :param `AcquisitionRequest` acquisition_req: A request that will be put in store.
         """
-        req = self.get(req_id)
-        full_id = '{}:{}'.format(req.orgUUID, req.id)
-        self._redis.hdel(self.REDIS_HASH_NAME, full_id)
+        self._redis.hdel(
+            self.REDIS_HASH_NAME,
+            '{}:{}'.format(acquisition_req.orgUUID, acquisition_req.id))
 
     def get_for_org(self, org_id):
         """

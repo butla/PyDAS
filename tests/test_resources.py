@@ -71,6 +71,13 @@ def fake_time(monkeypatch):
     monkeypatch.setattr('time.time', lambda: FAKE_TIME)
 
 
+@pytest.fixture
+def mock_user_management():
+    responses.add(responses.GET, FAKE_PERMISSION_URL, status=200, json=[
+        {'organization': {'metadata': {'guid': TEST_ORG_UUID}}}
+    ])
+
+
 def _simulate_falcon_post(api, path, data):
     resp_body, headers = simulate_falcon_request(
         api=api,
@@ -122,11 +129,7 @@ def test_external_service_call_error(mock_post):
 
 
 @responses.activate
-def test_acquisition_request(falcon_api, das_config, fake_time):
-    responses.add(responses.GET, FAKE_PERMISSION_URL, status=200, json=[
-        {'organization': {'metadata': {'guid': TEST_ORG_UUID}}}
-    ])
-
+def test_acquisition_request(falcon_api, das_config, fake_time, mock_user_management):
     resp_json, headers = _simulate_falcon_post(falcon_api, ACQUISITION_PATH, TEST_DOWNLOAD_REQUEST)
 
     assert headers.status == falcon.HTTP_202
@@ -290,7 +293,8 @@ def _simulate_falcon_get(api, path, query_string=''):
     return resp_json, headers
 
 
-def test_get_request(falcon_api, req_store_get):
+@responses.activate
+def test_get_request(falcon_api, req_store_get, mock_user_management):
     resp_json, headers = _simulate_falcon_get(
         api=falcon_api,
         path=GET_REQUEST_PATH.format(req_id=TEST_ACQUISITION_REQ.id))
@@ -317,21 +321,21 @@ def _simulate_falcon_delete(api, path):
     return headers
 
 
-def test_delete_request(falcon_api):
+@responses.activate
+def test_delete_request(falcon_api, req_store_get, mock_user_management):
     headers = _simulate_falcon_delete(
         falcon_api,
         GET_REQUEST_PATH.format(req_id=TEST_ACQUISITION_REQ.id))
     assert headers.status == falcon.HTTP_200
+    falcon_api.mock_req_store.delete.assert_called_with(TEST_ACQUISITION_REQ)
 
 
 def test_delete_request_not_found(falcon_api):
-    falcon_api.mock_req_store.delete.side_effect = RequestNotFoundError()
+    falcon_api.mock_req_store.get.side_effect = RequestNotFoundError()
     headers = _simulate_falcon_delete(
         falcon_api,
         GET_REQUEST_PATH.format(req_id='fake-id'))
     assert headers.status == falcon.HTTP_404
 
-# TODO test get unauthorized
-# TODO test delete unauthorized
 # TODO test getting all entries for an org
 # TODO test getting all entries unauthorized

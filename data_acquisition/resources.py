@@ -233,11 +233,13 @@ class SingleAcquisitionRequestResource():
     Resource for getting and deleting a single acquisition request.
     """
 
-    def __init__(self, req_store):
+    def __init__(self, req_store, config):
         """
         :param `.acquisition_request.AcquisitionRequestStore` req_store:
+        :param `data_acquisition.DasConfig` config: Configuration object for the application.
         """
         self._req_store = req_store
+        self._org_checker = FalconUserOrgAccessChecker(config.user_management_url)
 
     def on_get(self, req, resp, req_id):
         """
@@ -247,7 +249,9 @@ class SingleAcquisitionRequestResource():
         :param str req_id: Request's ID.
         """
         try:
-            resp.body = str(self._req_store.get(req_id))
+            acquisition_req = self._req_store.get(req_id)
+            self._org_checker.validate_access(req.auth, [acquisition_req.orgUUID])
+            resp.body = str(acquisition_req)
         except RequestNotFoundError:
             resp.status = falcon.HTTP_NOT_FOUND
 
@@ -259,7 +263,9 @@ class SingleAcquisitionRequestResource():
         :param str req_id: Request's ID.
         """
         try:
-            self._req_store.delete(req_id)
+            acquisition_req = self._req_store.get(req_id)
+            self._org_checker.validate_access(req.auth, [acquisition_req.orgUUID])
+            self._req_store.delete(acquisition_req)
         except RequestNotFoundError:
             resp.status = falcon.HTTP_NOT_FOUND
 

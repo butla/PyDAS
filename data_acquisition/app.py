@@ -59,7 +59,7 @@ def add_resources_to_routes(application, requests_store, queue, config):
         AcquisitionRequestsResource(requests_store, queue, config))
     application.add_route(
         GET_REQUEST_PATH,
-        SingleAcquisitionRequestResource(requests_store))
+        SingleAcquisitionRequestResource(requests_store, config))
     application.add_route(
         DOWNLOAD_CALLBACK_PATH,
         DownloadCallbackResource(requests_store, queue, config))

@@ -53,7 +53,7 @@ def test_put(req_store, redis_mock):
 
 
 def test_delete(req_store_real, redis_client, stored_request_real):
-    req_store_real.delete(TEST_ACQUISITION_REQ.id)
+    req_store_real.delete(TEST_ACQUISITION_REQ)
     assert not redis_client.hexists(
         AcquisitionRequestStore.REDIS_HASH_NAME,
         _get_full_req_id(TEST_ACQUISITION_REQ))
