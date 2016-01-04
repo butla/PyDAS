@@ -5,8 +5,7 @@ Python Data Acquisition Service
 **Under heavy development**
 
 ## TODO (necessary):
-1. Special handling of hdfs URIs
-1. Validate REDIS connection before starting workers.
+1. Special handling of hdfs URIs? It doesn't seem like it will work in original DAS.
 1. Split native and non-native requirements.
 
 ## TODO (optional):

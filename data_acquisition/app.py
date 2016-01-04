@@ -76,21 +76,23 @@ def get_app():
     To be used by WSGI server.
     """
     configure_logging(logging.INFO)
-
     config = DasConfig.get_config()
 
-    auth_middleware = JwtMiddleware()
-    auth_middleware.initialize(config.verification_key_url)
-
-    requests_store = AcquisitionRequestStore(redis.Redis(
+    redis_client = redis.Redis(
         port=config.redis_port,
         password=config.redis_password,
-        db=0))
+        db=0)
+    redis_client.ping()
+
+    requests_store = AcquisitionRequestStore(redis_client)
     queue = rq.Queue(connection=redis.Redis(
         host=config.redis_host,
         port=config.redis_port,
         password=config.redis_password,
         db=1))
+
+    auth_middleware = JwtMiddleware()
+    auth_middleware.initialize(config.verification_key_url)
 
     application = falcon.API(middleware=auth_middleware)
     add_resources_to_routes(application, requests_store, queue, config)

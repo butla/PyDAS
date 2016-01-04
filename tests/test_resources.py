@@ -152,6 +152,39 @@ def test_acquisition_request(falcon_api, das_config, fake_time, mock_user_manage
     assert stored_req.timestamps['VALIDATED'] == FAKE_TIMESTAMP
 
 
+# @responses.activate
+# def test_acquisition_request_for_hdfs(falcon_api, das_config, fake_time, mock_user_management):
+#     # TODO remove duplication
+#     proper_metadata_req = {
+#         'orgUUID': TEST_ACQUISITION_REQ.orgUUID,
+#         'publicRequest': TEST_ACQUISITION_REQ.publicRequest,
+#         'source': TEST_ACQUISITION_REQ.source,
+#         'category': TEST_ACQUISITION_REQ.category,
+#         'title': TEST_ACQUISITION_REQ.title,
+#         'id': TEST_ACQUISITION_REQ.id,
+#         'idInObjectStore': TEST_DOWNLOAD_CALLBACK['savedObjectId'], #TODO how is this supplied in original DAS?
+#         'callbackUrl': get_metadata_callback_url(TEST_DAS_URL, TEST_ACQUISITION_REQ.id)
+#     }
+#     test_request = copy.deepcopy(TEST_DOWNLOAD_REQUEST)
+#     test_request['source'] = 'hdfs://some-fake-url'
+#     resp_json, headers = _simulate_falcon_post(falcon_api, ACQUISITION_PATH, test_request)
+#
+#     assert headers.status == falcon.HTTP_202
+#     assert dict_is_part_of(resp_json, test_request)
+#
+#     falcon_api.mock_queue.enqueue.assert_called_with(
+#         external_service_call,
+#         url=das_config.metadata_parser_url,
+#         data=proper_metadata_req,
+#         hidden_token=SecretString(TEST_AUTH_HEADER)
+#     )
+#
+#     updated_request = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
+#     updated_request.state = 'DOWNLOADED'
+#     updated_request.timestamps['DOWNLOADED'] = FAKE_TIMESTAMP
+#     falcon_api.mock_req_store.put.assert_called_with(updated_request)
+
+
 def test_acquisition_bad_request(falcon_api):
     broken_request = dict(TEST_DOWNLOAD_REQUEST)
     del broken_request['category']

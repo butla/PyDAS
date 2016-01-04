@@ -119,10 +119,18 @@ def test_get_requests(req_store_real, das):
         params={'orgs': TEST_ACQUISITION_REQ.orgUUID},
         headers={'Authorization': TEST_AUTH_HEADER}
     )
-    returned_requests = [AcquisitionRequest(**req_json) for req_json in response.json()]
 
     assert response.status_code == 200
+    returned_requests = [AcquisitionRequest(**req_json) for req_json in response.json()]
     assert set(returned_requests) == set(test_requests[:-1])
 
+
+def test_access_to_forbidden_org(das):
+    response = requests.get(
+        urljoin(das.base_url, ACQUISITION_PATH),
+        params={'orgs': 'org-the-user-has-no-access-to'},
+        headers={'Authorization': TEST_AUTH_HEADER}
+    )
+    assert response.status_code == 403
+
 # TODO test that middleware is working (invalid token)
-# TODO test that org authorization works
