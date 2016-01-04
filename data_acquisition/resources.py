@@ -138,7 +138,10 @@ class DasResource:
         It will extract metadata from the downloaded file, make sure it gets indexed
         and call a callback on this app.
         :param AcquisitionRequest acquisition_req: The original acquisition request.
-        :param str id_in_object_store: Identifier for the dataset in a service storing it..
+        :param str id_in_object_store: Identifier for the dataset in a service storing it.
+        If not set, then the request will be sent without it.
+        This must only occur when "source" is an HDFS URI.
+        Metadata Parser will extract the value by itself from URI.
         :param str req_auth: Value of Authorization header, the token.
         """
         metadata_parse_req = {
@@ -148,9 +151,10 @@ class DasResource:
             'category': acquisition_req.category,
             'title': acquisition_req.title,
             'id': acquisition_req.id,
-            'idInObjectStore': id_in_object_store,
             'callbackUrl': self._get_metadata_callback_url(acquisition_req.id)
         }
+        if id_in_object_store:
+            metadata_parse_req['idInObjectStore'] = id_in_object_store
         self._queue.enqueue(
             external_service_call,
             url=self._config.metadata_parser_url,
@@ -190,9 +194,13 @@ class AcquisitionRequestsResource(DasResource):
         acquisition_req = self._get_acquisition_req(req)
         self._org_checker.validate_access(req.auth, [acquisition_req.orgUUID])
 
-        self._req_store.put(acquisition_req)
-        # TODO if the URL is on HDFS this should enqueue to metadata and set downloaded state
-        self._enqueue_downloader_request(acquisition_req, req.auth)
+        if acquisition_req.source.startswith('hdfs://'):
+            acquisition_req.set_downloaded()
+            self._req_store.put(acquisition_req)
+            self._enqueue_metadata_request(acquisition_req, None, req.auth)
+        else:
+            self._req_store.put(acquisition_req)
+            self._enqueue_downloader_request(acquisition_req, req.auth)
 
         resp.body = str(acquisition_req)
         resp.status = falcon.HTTP_ACCEPTED
