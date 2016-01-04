@@ -1,0 +1,10 @@
+Cerberus==0.9.2
+click==5.1
+falcon==0.3.0
+gunicorn==19.3.0
+PyJWT==1.4.0
+python-mimeparse==0.1.4
+redis==2.10.3
+requests==2.7.0
+rq==0.5.5
+six==1.9.0
