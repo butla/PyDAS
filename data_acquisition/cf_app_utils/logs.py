@@ -5,6 +5,8 @@ Delivers standard logging configuration for CloudFoundry app.
 import logging
 import sys
 
+NEGATIVE_LEVEL = logging.ERROR
+
 
 def configure_logging(log_level):
     log_formatter = logging.Formatter('%(levelname)s : %(name)s : %(message)s')
@@ -14,7 +16,7 @@ def configure_logging(log_level):
     positive_handler.setFormatter(log_formatter)
 
     negative_handler = logging.StreamHandler(sys.stderr)
-    negative_handler.setLevel(logging.WARNING)
+    negative_handler.setLevel(NEGATIVE_LEVEL)
     negative_handler.setFormatter(log_formatter)
 
     root_logger = logging.getLogger()
@@ -30,4 +32,4 @@ class _PositiveMessageFilter(logging.Filter):
     """
 
     def filter(self, record):
-        return record.levelno not in (logging.WARNING, logging.ERROR)
+        return record.levelno < NEGATIVE_LEVEL

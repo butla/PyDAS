@@ -7,13 +7,12 @@ Python Data Acquisition Service
 * `cf push`
 
 ## Development
-* Running tests (and preparing a virtual environment): `tox`
+* Running tests (and preparing a virtual environment): `./build_for_cf.sh && tox`
 * Activating virtualenv created by Tox: `source .tox/py34/bin/activate`
 * Bumping the version: (while in virtualenv) `bumpversion --alow-dirty patch`
 * Running the application: (you need to configure addresses in the script first) `./run_app.sh`
 
 ## TODO (optional):
-1. test for logging.
 1. Separate requirements for tools and testing libraries.
 1. Extract a general configuration parsing solution.
 1. Document how to develop the project.

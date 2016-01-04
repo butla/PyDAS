@@ -1,4 +1,5 @@
 import json
+import logging
 from unittest.mock import patch
 
 import falcon
@@ -13,6 +14,7 @@ from .consts import (RSA_2048_PUB_KEY, TEST_AUTH_HEADER, TEST_ADMIN_AUTH_HEADER,
                      FAKE_PERMISSION_SERVICE_URL, FAKE_PERMISSION_URL)
 from data_acquisition.cf_app_utils.auth import *
 from data_acquisition.cf_app_utils.auth.falcon import JwtMiddleware, FalconUserOrgAccessChecker
+import data_acquisition.cf_app_utils.logs
 
 
 @responses.activate
@@ -136,3 +138,21 @@ def test_falcon_user_in_org_no_service(falcon_user_org_access_checker):
     responses.add(responses.GET, FAKE_PERMISSION_URL, status=404)
     with pytest.raises(falcon.HTTPServiceUnavailable):
         falcon_user_org_access_checker.validate_access(TEST_AUTH_HEADER, [TEST_ORG_UUID])
+
+
+def test_log_settings(capsys):
+    data_acquisition.cf_app_utils.logs.configure_logging(logging.DEBUG)
+
+    positive_levels = (logging.DEBUG, logging.INFO, logging.WARNING)
+    negative_levels = (logging.ERROR, logging.FATAL)
+    log = logging.getLogger('logger_test')
+    for level in positive_levels + negative_levels:
+        log.log(level, logging.getLevelName(level) + 'msg')
+
+    out, err = capsys.readouterr()
+    for level, out_line in zip(positive_levels, out.split('\n')):
+        level_name = logging.getLevelName(level)
+        assert out_line == '{} : {} : {}'.format(level_name, 'logger_test', level_name + 'msg')
+    for level, err_line in zip(negative_levels, err.split('\n')):
+        level_name = logging.getLevelName(level)
+        assert err_line == '{} : {} : {}'.format(level_name, 'logger_test', level_name + 'msg')
