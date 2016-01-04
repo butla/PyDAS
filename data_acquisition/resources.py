@@ -2,6 +2,7 @@
 REST resources of the app.
 """
 
+import itertools
 import json
 import logging
 from urllib.parse import urljoin
@@ -195,6 +196,17 @@ class AcquisitionRequestsResource(DasResource):
 
         resp.body = str(acquisition_req)
         resp.status = falcon.HTTP_ACCEPTED
+
+    def on_get(self, req, resp):
+        requested_orgs = req.params['orgs']
+        if type(requested_orgs) == str: # only one org submitted
+            requested_orgs = [requested_orgs]
+        self._org_checker.validate_access(req.auth, requested_orgs)
+
+
+        acquisition_request_lists = [self._req_store.get_for_org(org) for org in requested_orgs]
+        acquisition_requests = itertools.chain(*acquisition_request_lists)
+        resp.body = json.dumps([acq_req.__dict__ for acq_req in acquisition_requests])
 
     def _get_acquisition_req(self, req):
         """

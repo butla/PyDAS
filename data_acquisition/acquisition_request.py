@@ -118,6 +118,9 @@ class AcquisitionRequest:
     def __repr__(self):
         return '{}({})'.format(type(self), repr(self.__dict__))
 
+    def __hash__(self):
+        return hash(self.id)
+
     def set_validated(self):
         """
         Sets the state of the object to validated.

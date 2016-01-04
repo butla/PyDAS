@@ -1,6 +1,6 @@
 import copy
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 from urllib.parse import urljoin
 
 import responses
@@ -337,5 +337,33 @@ def test_delete_request_not_found(falcon_api):
         GET_REQUEST_PATH.format(req_id='fake-id'))
     assert headers.status == falcon.HTTP_404
 
-# TODO test getting all entries for an org
-# TODO test getting all entries unauthorized
+
+@responses.activate
+@pytest.mark.parametrize('org_ids', [
+    ['id-1'],
+    ['id-1', 'id-2'],
+    ['id-1', 'id-2', 'id-3'],
+])
+@pytest.mark.parametrize('acquisition_requests', [
+    [TEST_ACQUISITION_REQ],
+    [TEST_ACQUISITION_REQ, TEST_ACQUISITION_REQ]
+])
+def test_get_requests_for_org(org_ids, acquisition_requests, falcon_api):
+    responses.add(
+        responses.GET,
+        FAKE_PERMISSION_URL,
+        status=200,
+        json=[{'organization': {'metadata': {'guid': id}}} for id in org_ids])
+
+    falcon_api.mock_req_store.get_for_org.return_value = acquisition_requests
+
+    resp_json, headers = _simulate_falcon_get(
+        api=falcon_api,
+        path=ACQUISITION_PATH,
+        query_string='orgs=' + ','.join(org_ids)
+    )
+    returned_requests = [AcquisitionRequest(**req_json) for req_json in resp_json]
+
+    assert headers.status == falcon.HTTP_200
+    assert returned_requests == acquisition_requests * len(org_ids)
+    assert falcon_api.mock_req_store.get_for_org.call_args_list == [call(id) for id in org_ids]

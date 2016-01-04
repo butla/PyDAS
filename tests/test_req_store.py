@@ -64,8 +64,7 @@ def _get_store_id(acquisition_req):
 
 
 def test_get_for_org(req_store, redis_mock):
-    new_req = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
-    test_requests = new_req, copy.deepcopy(new_req), copy.deepcopy(new_req)
+    test_requests = [copy.deepcopy(TEST_ACQUISITION_REQ) for _ in range(3)]
     test_requests[1].orgUUID = 'other-fake-uuid'
     test_requests[2].id = 'other-fake-id'
     redis_mock.hgetall.return_value = {_get_store_id(req): str(req).encode()
