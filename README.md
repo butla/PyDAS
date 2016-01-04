@@ -7,15 +7,19 @@ Python Data Acquisition Service
 * `cf push`
 
 ## Development
-* Running tests (and preparing a virtual environment): `./build_for_cf.sh && tox`
+* Running tests (and preparing a virtual environment): `tox`
 * Activating virtualenv created by Tox: `source .tox/py34/bin/activate`
 * Bumping the version: (while in virtualenv) `bumpversion --alow-dirty patch`
 * Running the application: (you need to configure addresses in the script first) `./run_app.sh`
 
+## Dependency management
+Due to shenanigans with offline deployments the requirements need to go into two files:
+* Add dependencies that need to compiled on the target platform and their dependencies `requirements-native.txt`.
+* Pure Python dependencies should go to `requirements-normal.txt`.
+* Running `./build_for_cf.sh` will generate `requirements.txt` that can be used to deploy the app.
+
 ## TODO (optional):
-1. Separate requirements for tools and testing libraries.
 1. Extract a general configuration parsing solution.
-1. Document how to develop the project.
 1. Add a script to run locally with Docker, environment and Mountebank mocks.
 1. All addresses should be HTTPS.
 1. Make it run on Travis.
