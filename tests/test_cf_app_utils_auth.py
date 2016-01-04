@@ -143,16 +143,12 @@ def test_falcon_user_in_org_no_service(falcon_user_org_access_checker):
 def test_log_settings(capsys):
     data_acquisition.cf_app_utils.logs.configure_logging(logging.DEBUG)
 
-    positive_levels = (logging.DEBUG, logging.INFO, logging.WARNING)
-    negative_levels = (logging.ERROR, logging.FATAL)
+    log_levels = (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.FATAL)
     log = logging.getLogger('logger_test')
-    for level in positive_levels + negative_levels:
+    for level in log_levels:
         log.log(level, logging.getLevelName(level) + 'msg')
 
     out, err = capsys.readouterr()
-    for level, out_line in zip(positive_levels, out.split('\n')):
+    for level, log_line in zip(log_levels, out.splitlines() + err.splitlines()):
         level_name = logging.getLevelName(level)
-        assert out_line == '{} : {} : {}'.format(level_name, 'logger_test', level_name + 'msg')
-    for level, err_line in zip(negative_levels, err.split('\n')):
-        level_name = logging.getLevelName(level)
-        assert err_line == '{} : {} : {}'.format(level_name, 'logger_test', level_name + 'msg')
+        assert log_line == '{} : {} : {}'.format(level_name, 'logger_test', level_name + 'msg')

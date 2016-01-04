@@ -7,7 +7,8 @@ Python Data Acquisition Service
 * `cf push`
 
 ## Development
-* Running tests (and preparing a virtual environment): `tox`
+* Preparing a virtual environment, running the tests and quality check: `tox`
+* Running just the tests without quality checks (from virtualenv): `py.test tests/`
 * Activating virtualenv created by Tox: `source .tox/py34/bin/activate`
 * Bumping the version: (while in virtualenv) `bumpversion --alow-dirty patch`
 * Running the application: (you need to configure addresses in the script first) `./run_app.sh`
@@ -19,6 +20,7 @@ Due to shenanigans with offline deployments the requirements need to go into two
 * Running `./build_for_cf.sh` will generate `requirements.txt` that can be used to deploy the app.
 
 ## TODO (optional):
+1. Use diff_cover's diff-quality to pick fail on a new pylint error?
 1. Extract a general configuration parsing solution.
 1. Add a script to run locally with Docker, environment and Mountebank mocks.
 1. All addresses should be HTTPS.

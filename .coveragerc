@@ -3,3 +3,4 @@ omit = data_acquisition/app.py
 
 [report]
 exclude_lines = def __repr__
+fail_under = 100
