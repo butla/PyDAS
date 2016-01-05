@@ -78,18 +78,16 @@ def get_app():
     configure_logging(logging.INFO)
     config = DasConfig.get_config()
 
-    redis_client = redis.Redis(
-        port=config.redis_port,
-        password=config.redis_password,
-        db=0)
-    redis_client.ping()
+    redis_client_args = {
+        'host': config.redis_host,
+        'port': config.redis_port,
+        'password': config.redis_password
+    }
+    redis_client_store = redis.Redis(db=0, **redis_client_args)
+    assert redis_client_store.ping()
 
-    requests_store = AcquisitionRequestStore(redis_client)
-    queue = rq.Queue(connection=redis.Redis(
-        host=config.redis_host,
-        port=config.redis_port,
-        password=config.redis_password,
-        db=1))
+    requests_store = AcquisitionRequestStore(redis_client_store)
+    queue = rq.Queue(connection=redis.Redis(db=1, **redis_client_args))
 
     auth_middleware = JwtMiddleware()
     auth_middleware.initialize(config.verification_key_url)

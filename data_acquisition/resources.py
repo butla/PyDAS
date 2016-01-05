@@ -183,6 +183,7 @@ class AcquisitionRequestsResource(DasResource):
             'source': {'type': 'string', 'required': True},
             'title': {'type': 'string', 'required': True},
         })
+        self._download_req_validator.allow_unknown = True
         self._org_checker = FalconUserOrgAccessChecker(config.user_management_url)
 
     def on_post(self, req, resp):
@@ -309,6 +310,7 @@ class DownloadCallbackResource(DasResource):
             'savedObjectId': {'type': 'string', 'required': True},
             'objectStoreId': {'type': 'string', 'required': True},
         })
+        self._callback_validator.allow_unknown = True
 
     def on_post(self, req, resp, req_id):
         """
@@ -352,6 +354,7 @@ class UploaderResource(DasResource):
             'idInObjectStore': {'type': 'string', 'required': True},
             'objectStoreId': {'type': 'string', 'required': False}
         })
+        self._uploader_req_validator.allow_unknown = True
 
     def on_post(self, req, resp):
         """
@@ -385,6 +388,7 @@ class MetadataCallbackResource(DasResource):
         self._callback_validator = Validator(schema={
             'state': {'type': 'string', 'required': True}
         })
+        self._callback_validator.allow_unknown = True
 
     def on_post(self, req, resp, req_id):
         """

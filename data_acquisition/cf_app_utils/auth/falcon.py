@@ -48,7 +48,7 @@ class JwtMiddleware:
 
         token = req.auth.split()[1] # skip 'bearer'
         try:
-            jwt.decode(token, key=self._verification_key)
+            jwt.decode(token, key=self._verification_key, options={'verify_aud': False})
         except Exception as ex:
             err_msg = 'Verification of the JWT token has failed.'
             self._log.exception(err_msg)
