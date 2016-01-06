@@ -35,7 +35,7 @@ class JwtMiddleware:
         """
         pass
 
-    def process_resource(self, req, resp, resource):
+    def process_resource(self, req, resp, resource): #pylint: disable=unused-argument
         """
         Verifies the JWT token used when calling the resource.
         Some resources may have disabled this verification, when they should be publicly accessible.

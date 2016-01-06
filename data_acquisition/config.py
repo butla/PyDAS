@@ -11,7 +11,7 @@ from .consts import DOWNLOADER_PATH, METADATA_PARSER_PATH
 
 
 # TODO most of this class should be extracted as a base class for other configuration objects
-class DasConfig:
+class DasConfig: #pylint: disable=too-many-instance-attributes
 
     """
     Configuration for the application.
@@ -20,7 +20,7 @@ class DasConfig:
 
     _conf_obj = None
 
-    def __init__(
+    def __init__( #pylint: disable=too-many-arguments
             self,
             self_url=None,
             port=None,

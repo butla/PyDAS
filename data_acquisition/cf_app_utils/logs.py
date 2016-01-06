@@ -9,6 +9,12 @@ NEGATIVE_LEVEL = logging.ERROR
 
 
 def configure_logging(log_level):
+    """
+    Sets up the logging so that only the negative messages go to error output.
+    Rest goes to standard output.
+    This is useful when looking through Cloud Foundry logs.
+    :param int log_level: One of the log levels from `logging` module.
+    """
     log_formatter = logging.Formatter('%(levelname)s : %(name)s : %(message)s')
 
     positive_handler = logging.StreamHandler(sys.stdout)

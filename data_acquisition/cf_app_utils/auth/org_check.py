@@ -91,6 +91,9 @@ class UserOrgAccessChecker:
 
 
 class NoOrgAccessError(Exception):
+    """
+    User doesn't have access to the requested resource.
+    """
     pass
 
 

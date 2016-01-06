@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch, call
 from urllib.parse import urljoin
 
 import responses
+import requests
 import falcon
 import pytest
 
@@ -124,7 +125,7 @@ def test_external_service_call_not_ok():
 
 @patch('data_acquisition.resources.requests.post')
 def test_external_service_call_error(mock_post):
-    mock_post.side_effect = Exception('test exception')
+    mock_post.side_effect = requests.exceptions.ConnectionError()
     assert not external_service_call('https://bla', {'a': 'b'}, SecretString('bearer fake-token'))
 
 
@@ -189,7 +190,7 @@ def test_acquisition_bad_request(falcon_api):
     broken_request = dict(TEST_DOWNLOAD_REQUEST)
     del broken_request['category']
 
-    __, headers = _simulate_falcon_post(falcon_api, ACQUISITION_PATH, broken_request)
+    _, headers = _simulate_falcon_post(falcon_api, ACQUISITION_PATH, broken_request)
     assert headers.status == falcon.HTTP_400
 
 
@@ -205,7 +206,7 @@ def test_downloader_callback_ok(falcon_api, das_config, fake_time, req_store_get
         'callbackUrl': get_metadata_callback_url(TEST_DAS_URL, TEST_ACQUISITION_REQ.id)
     }
 
-    __, headers = _simulate_falcon_post(
+    _, headers = _simulate_falcon_post(
         api=falcon_api,
         path=DOWNLOAD_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
         data=TEST_DOWNLOAD_CALLBACK
@@ -230,7 +231,7 @@ def test_downloader_callback_failed(falcon_api, fake_time, req_store_get):
     failed_callback_req = dict(TEST_DOWNLOAD_CALLBACK)
     failed_callback_req['state'] = 'ERROR'
 
-    __, headers = _simulate_falcon_post(
+    _, headers = _simulate_falcon_post(
         api=falcon_api,
         path=DOWNLOAD_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
         data=failed_callback_req
@@ -245,7 +246,7 @@ def test_downloader_callback_failed(falcon_api, fake_time, req_store_get):
 
 
 def test_metadata_callback_ok(falcon_api, fake_time, req_store_get):
-    __, headers = _simulate_falcon_post(
+    _, headers = _simulate_falcon_post(
         api=falcon_api,
         path=METADATA_PARSER_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
         data=TEST_METADATA_CALLBACK
@@ -259,7 +260,7 @@ def test_metadata_callback_ok(falcon_api, fake_time, req_store_get):
 
 
 def test_metadata_callback_failed(falcon_api, fake_time, req_store_get):
-    __, headers = _simulate_falcon_post(
+    _, headers = _simulate_falcon_post(
         api=falcon_api,
         path=METADATA_PARSER_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
         data={'state': 'FAILED'}
@@ -279,7 +280,7 @@ def test_uploader_request_ok(falcon_api, das_config, fake_time):
         'objectStoreId': 'hdfs://some-fake-hdfs-path',
     })
 
-    __, headers = _simulate_falcon_post(
+    _, headers = _simulate_falcon_post(
         api=falcon_api,
         path=UPLOADER_REQUEST_PATH,
         data=test_uploader_req
@@ -337,14 +338,14 @@ def test_get_request(falcon_api, req_store_get, mock_user_management):
 
 def test_get_request_not_found(falcon_api):
     falcon_api.mock_req_store.get.side_effect = RequestNotFoundError()
-    __, headers = _simulate_falcon_get(
+    _, headers = _simulate_falcon_get(
         api=falcon_api,
         path=GET_REQUEST_PATH.format(req_id='some-fake-id'))
     assert headers.status == falcon.HTTP_404
 
 
 def _simulate_falcon_delete(api, path):
-    __, headers = simulate_falcon_request(
+    _, headers = simulate_falcon_request(
         api=api,
         path=path,
         encoding='utf-8',

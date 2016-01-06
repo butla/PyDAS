@@ -5,7 +5,7 @@ Various functions used by the authorization/authentication layer.
 import logging
 import requests
 
-_log = logging.getLogger(__name__)
+_log = logging.getLogger(__name__) #pylint: disable=invalid-name
 
 
 def get_uaa_key(uaa_key_url):

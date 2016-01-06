@@ -33,7 +33,7 @@ def start_queue_worker(queue):
         with rq.Connection(queue.connection):
             rq.Worker(queue, default_result_ttl=0).work()
 
-    def terminate_handler(signo, stack_frame):
+    def terminate_handler(*_):
         """
         Stops Redis queue worker process when this process receives the terminate signal.
         """

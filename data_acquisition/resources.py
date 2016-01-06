@@ -52,6 +52,9 @@ class SecretString:
         return self.value() == other.value()
 
     def value(self):
+        """
+        Get the value of the string wrapped by this object.
+        """
         return self.string
 
 
@@ -77,7 +80,7 @@ def external_service_call(url, data, hidden_token):
                 data,
                 resp.text
             )
-    except:
+    except requests.exceptions.ConnectionError:
         LOG.exception('Error when sending a request to %s with data %s', url, data)
     return False
 
@@ -207,8 +210,14 @@ class AcquisitionRequestsResource(DasResource):
         resp.status = falcon.HTTP_ACCEPTED
 
     def on_get(self, req, resp):
+        """
+        Get acquisitions requests belonging to specific organizations,
+        specified by a query parameter.
+        :param `falcon.Request` req:
+        :param `falcon.Response` resp:
+        """
         requested_orgs = req.params['orgs']
-        if type(requested_orgs) == str: # only one org submitted
+        if isinstance(requested_orgs, str): # only one org submitted
             requested_orgs = [requested_orgs]
         self._org_checker.validate_access(req.auth, requested_orgs)
 
@@ -312,12 +321,12 @@ class DownloadCallbackResource(DasResource):
         })
         self._callback_validator.allow_unknown = True
 
-    def on_post(self, req, resp, req_id):
+    def on_post(self, req, _, req_id):
         """
         Callback after download of the data set.
         This will trigger a request to Metadata Parser.
         :param `falcon.Request` req:
-        :param `falcon.Response` resp:
+        :param `falcon.Response` _:
         :param str req_id: ID given to the original acquisition request
         """
         req_json = self._parse_request(req, self._callback_validator, 'download callback')
@@ -356,12 +365,12 @@ class UploaderResource(DasResource):
         })
         self._uploader_req_validator.allow_unknown = True
 
-    def on_post(self, req, resp):
+    def on_post(self, req, _):
         """
         Callback after download of the data set.
         This will trigger a request to Metadata Parser.
         :param `falcon.Request` req:
-        :param `falcon.Response` resp:
+        :param `falcon.Response` _:
         """
         req_json = self._parse_request(req, self._uploader_req_validator, 'uploader request')
 
@@ -390,12 +399,12 @@ class MetadataCallbackResource(DasResource):
         })
         self._callback_validator.allow_unknown = True
 
-    def on_post(self, req, resp, req_id):
+    def on_post(self, req, _, req_id):
         """
         Callback after download of the data set.
         This will trigger a request to Metadata Parser.
         :param `falcon.Request` req:
-        :param `falcon.Response` resp:
+        :param `falcon.Response` _:
         :param str req_id: ID given to the original acquisition request
         """
         req_json = self._parse_request(req, self._callback_validator, 'metadata callback')

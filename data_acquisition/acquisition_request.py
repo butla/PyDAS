@@ -75,14 +75,14 @@ class AcquisitionRequestStore:
     # TODO get all (for admin only)
 
 
-class AcquisitionRequest:
+class AcquisitionRequest: #pylint: disable=too-many-instance-attributes
 
     """
     Data set download request.
     """
 
-    def __init__(self, title, orgUUID, publicRequest, source, category,
-                 state='NEW', id=None, timestamps=None, **__):
+    def __init__(self, title, orgUUID, publicRequest, source, category, #pylint: disable=too-many-arguments
+                 state='NEW', id=None, timestamps=None, **_): #pylint: disable=redefined-builtin
         """
         :param str title:
         :param str orgUUID:
@@ -94,14 +94,14 @@ class AcquisitionRequest:
         :param dict timestamps:
         :param __: Ignored keyword arguments. Eases deserialization with unknown fields.
         """
-        self.orgUUID = orgUUID
-        self.publicRequest = publicRequest
+        self.orgUUID = orgUUID #pylint: disable=invalid-name
+        self.publicRequest = publicRequest #pylint: disable=invalid-name
         self.source = source
         self.category = category
         self.title = title
         self.state = state
         if id:
-            self.id = id
+            self.id = id #pylint: disable=invalid-name,redefined-builtin
         else:
             self.id = str(uuid.uuid4())
         if not timestamps:
