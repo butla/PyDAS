@@ -42,8 +42,8 @@ CQIDAQAB
 '''
 
 # token created with:
-# jwt.encode(payload={'scope': ['nothing'], 'a': 'b'}, key=RSA_2048_PRIV_KEY, algorithm='RS256').decode()
-TEST_AUTH_HEADER = 'bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzY29wZSI6WyJub3RoaW5nIl0sImEiOiJiIn0.egZuJIZpA-WGr_IXXuV8Q2aY5mFdFGC3nZvsN33hJxzFtDie07XYjsNiSmCAgxInZEatE4f7GTt9qa1tuKibAdgr4jxcoHbCN2CqDAkEwuloNciInJbRMBk_lK3eCacFc46htVu1qrifvvJRBaxsunBj6g8mbdNiVV1PKyRgTuG0WRBI8OLBuHK5r2jXPNhkStsz2blZlXs3T2SgjPRF4jR0hAJAO8wpZGqxxFA4fzjBHG-CVmuxeAMv5APESpM_K6J_rVMBX8jFPiwB34EJZ1bQXyVn2ZcpmoOYTXInQu5nj5vwIHD2idvoZ_VniMjJuPrDJCZ-aVKbVJKbXE3rBg'
+# jwt.encode(payload={'a': 'b', 'scope': ['nothing'], 'aud': ['something']}, key=RSA_2048_PRIV_KEY, algorithm='RS256').decode()
+TEST_AUTH_HEADER = 'bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhIjoiYiIsImF1ZCI6WyJzb21ldGhpbmciXSwic2NvcGUiOlsibm90aGluZyJdfQ.diUV9NgUPNzohMscF-UoAkwAkH5lLReur-DGN6IQ94DD8FmoOE4cHwmrrnoJDxNSe4U3J7vx6mylI2YjMT3EXGlabQCaUIp_4zuZGJti0Fd2n3obtWAW2JDRANBs6qcAQPY01WpKSbSKuCbUO9VvL_3D9gfR96kKTokIUUtVakX6oZPoPouERXoGc-G2VewsJXRcI5exkDqF3KYYKnFQCRhNimUt7mmRoiQQQaEMin_EWOmFiBnTMbBjBYS_LwjWAiNdu4JyWFHBxNTMAK4Pz_p7DlCJCwjliDumUjrE25fDEXu2EKCIIHAvFz9yn-qQr_3iuGP2hwIF8AfAepQmQQ'
 
 # jwt.encode(payload={'scope': ['console.admin'], 'a': 'b'}, key=RSA_2048_PRIV_KEY, algorithm='RS256').decode()
 TEST_ADMIN_AUTH_HEADER = 'bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzY29wZSI6WyJjb25zb2xlLmFkbWluIl0sImEiOiJiIn0.I4pekwOqNH6lGo656LZiM75ogUIalI_pUj-GbWvtgcp_dlyv47FGpU9zdO3iwaCEU0QXdf-Eoy9aC7wE6sstp-5k739vfCgZ_xp1J9yJp0Mnm7QiNNN4I4Zs5C34g341shJozmrS9LbPPZtVsI2cRG31oJ-TlIavYj7ZAqfLgdAMlIm73coIkIAusKdgtPZT-FxDeWMs5-BlMgTcpM2mGOWba1PDHagB0c_GbH40vhapcnJdpDNdufSLcp_oVAveu8__cVSHehDRx_GDtK8A656auc4R8XRZq_oL24h8hqEIV155plOW3CAh4dlpXnVl4E1HxO2cEixHCSyBH358_g'
