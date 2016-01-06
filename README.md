@@ -6,9 +6,13 @@ Python Data Acquisition Service
 * `./build_for_cf.sh`
 * `cf push`
 
-## Development
+## Testing
+* Install [Docker](https://docs.docker.com/linux/step_one/)
+* Install NodeJS and Mountebank: `sudo apt-get install -y nodejs-legacy npm && sudo npm install -g mountebank --production`
 * Preparing a virtual environment, running the tests and quality check: `tox`
 * Running just the tests without quality checks (from virtualenv): `py.test tests/`
+
+## Other development activities
 * Activating virtualenv created by Tox: `source .tox/py34/bin/activate`
 * Bumping the version: (while in virtualenv) `bumpversion --alow-dirty patch`
 * Running the application: (you need to configure addresses in the script first) `./run_app.sh`
