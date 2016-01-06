@@ -333,10 +333,14 @@ class DownloadCallbackResource(DasResource):
 
         acquisition_req = self._req_store.get(req_id)
         if req_json['state'] == 'DONE':
+            self._log.info('Acquisition request downloaded. Title: %s. ID: %s',
+                           acquisition_req.title, acquisition_req.id)
             acquisition_req.set_downloaded()
             self._req_store.put(acquisition_req)
             self._enqueue_metadata_request(acquisition_req, req_json['savedObjectId'], req.auth)
         else:
+            self._log.error('Acquisition request failed in Downloader. Title: %s. ID: %s',
+                            acquisition_req.title, acquisition_req.id)
             acquisition_req.set_error()
             self._req_store.put(acquisition_req)
 
@@ -411,9 +415,13 @@ class MetadataCallbackResource(DasResource):
 
         acquisition_req = self._req_store.get(req_id)
         if req_json['state'] == 'DONE':
+            self._log.info('Acquisition request successful. Title: %s. ID: %s',
+                           acquisition_req.title, acquisition_req.id)
             acquisition_req.set_finished()
             self._req_store.put(acquisition_req)
         else:
+            self._log.error('Acquisition request failed in Metadata Parser. Title: %s. ID: %s',
+                            acquisition_req.title, acquisition_req.id)
             acquisition_req.set_error()
             self._req_store.put(acquisition_req)
 

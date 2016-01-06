@@ -20,6 +20,7 @@ Due to shenanigans with offline deployments the requirements need to go into two
 * Running `./build_for_cf.sh` will generate `requirements.txt` that can be used to deploy the app.
 
 ## TODO (optional):
+1. Fix RQ worker doubling the logs.
 1. Extract a general configuration parsing solution.
 1. Add a script to run locally with Docker, environment and Mountebank mocks.
 1. All addresses should be HTTPS.
