@@ -22,9 +22,10 @@ def simulate_falcon_request(api, path='/', encoding=None, **kwargs):
     """Simulates a request to a `falcon.API`.
 
     Args:
-        path (str): The path to request.
-        decode (str, optional): If this is set to a character encoding,
-            such as 'utf-8', `simulate_request` will assume the
+        api (falcon.API): API object to send the request to.
+        path (str, optional): The path to request.
+        encoding (str, optional): If this is set to a character encoding,
+            such as 'utf-8', `simulate_falcon_request` will assume the
             response is a single byte string, and will decode it as the
             result of the request, rather than simply returning the
             standard WSGI iterable.
