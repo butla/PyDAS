@@ -24,13 +24,13 @@ Due to shenanigans with offline deployments the requirements need to go into two
 * Running `./build_for_cf.sh` will generate `requirements.txt` that can be used to deploy the app.
 
 ## TODO (optional):
-1. Fix RQ worker doubling the logs.
 1. Extract a general configuration parsing solution.
-1. Add a script to run locally with Docker, environment and Mountebank mocks.
-1. All addresses should be HTTPS.
-1. Make it run on Travis.
+1. Make it run on Travis. Add coverage report.
 1. Add Swagger to service.
 1. Service test should only call the service through a Bravado generated client. Maybe separate contract tests.
+1. Merge `simulate_falcon_request` from tests into Falcon.
+1. Add a script to run locally with Docker, environment and Mountebank mocks.
+1. All addresses should be HTTPS.
 1. Separate slower (integration and service) tests.
 1. Transaction IDs in the further calls and errors.
 1. Command starting in tests should be taken from manifest.

@@ -40,7 +40,15 @@ def start_queue_worker(queue):
         queue_worker.terminate()
         sys.exit(0)
 
-    logging.info('starting queue worker process')
+    def disable_default_worker_logging():
+        """
+        RQ worker, sadly, set's up a logging handler
+        that duplicates the log messages for this application's setup.
+        """
+        logging.getLogger('rq.worker').addHandler(logging.NullHandler())
+
+    logging.info('Starting queue worker process...')
+    disable_default_worker_logging()
     queue_worker = multiprocessing.Process(target=do_work)
     signal.signal(signal.SIGTERM, terminate_handler)
     queue_worker.start()
