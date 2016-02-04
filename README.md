@@ -8,7 +8,6 @@ Python Data Acquisition Service
 
 ## Testing
 * Install [Docker](https://docs.docker.com/linux/step_one/)
-* Install NodeJS and Mountebank: `sudo apt-get install -y nodejs-legacy npm && sudo npm install -g mountebank --production`
 * Preparing a virtual environment, running the tests and quality check: `tox`
 * Running just the tests without quality checks (from virtualenv): `py.test tests/`
 

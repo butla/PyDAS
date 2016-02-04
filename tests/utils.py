@@ -2,7 +2,7 @@
 Utility functions used by the tests.
 """
 from falcon.testing import StartResponseMock, create_environ
-
+from requests.structures import CaseInsensitiveDict
 
 def dict_is_part_of(dict_a, dict_b):
     """
@@ -12,6 +12,7 @@ def dict_is_part_of(dict_a, dict_b):
     :param dict dict_b:
     :rtype: bool
     """
+    dict_a, dict_b = CaseInsensitiveDict(dict_a), CaseInsensitiveDict(dict_b)
     for key, value in dict_b.items():
         if key not in dict_a or dict_a[key] != value:
             return False
