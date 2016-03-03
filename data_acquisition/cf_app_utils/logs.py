@@ -15,7 +15,7 @@ def configure_logging(log_level):
     This is useful when looking through Cloud Foundry logs.
     :param int log_level: One of the log levels from `logging` module.
     """
-    log_formatter = logging.Formatter('%(levelname)s : %(name)s : %(message)s')
+    log_formatter = logging.Formatter('%(levelname)s:%(name)s: %(message)s')
 
     positive_handler = logging.StreamHandler(sys.stdout)
     positive_handler.addFilter(_PositiveMessageFilter())

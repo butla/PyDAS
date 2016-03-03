@@ -1,11 +1,11 @@
 ---
 applications:
 - name: pydas
-  command: gunicorn 'data_acquisition.app:get_app()' --bind :$PORT --enable-stdio-inheritance --workers `nproc`
-  memory: 512M
+  command: waitress-serve --port $PORT --call data_acquisition.app:get_app
+  memory: 96M
   disk_quota: 256M
   buildpack: python_buildpack
-  instances: 1
+  instances: 2
   services:
     - downloader
     - metadataparser
@@ -15,4 +15,4 @@ applications:
   env:
     LOG_LEVEL: "INFO"
     # DO NOT TOUCH - version is changed automatically by Bumpversion
-    VERSION: "0.5.0"
+    VERSION: "0.6.0"

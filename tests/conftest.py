@@ -197,20 +197,23 @@ def das_session(request, vcap_services, uaa_imposter):
         das_service.stop()
     request.addfinalizer(fin)
 
-    gunicorn_path = os.path.join(os.path.dirname(sys.executable), 'gunicorn')
+    waitress_path = os.path.join(os.path.dirname(sys.executable), 'waitress-serve')
     das_command = [
-        gunicorn_path,
-        'data_acquisition.app:get_app()',
-        '--bind', ':{port}',
-        '--enable-stdio-inheritance',
-        '--pythonpath', ','.join(sys.path)]
+        waitress_path,
+        '--port', '{port}',
+        '--call', 'data_acquisition.app:get_app']
+
+    this_file_dir = os.path.dirname(os.path.realpath(__file__))
+    project_root_path_rel = os.path.join(this_file_dir, '..')
+    project_root_path = os.path.realpath(project_root_path_rel)
 
     das_service = HttpService(
         das_command,
         env={
             'VCAP_APPLICATION': TEST_VCAP_APPLICATION,
             'VCAP_SERVICES': vcap_services,
-            'VCAP_APP_PORT': '{port}'
+            'VCAP_APP_PORT': '{port}',
+            'PYTHONPATH': project_root_path,
         })
 
     das_service.start()

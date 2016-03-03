@@ -151,4 +151,4 @@ def test_log_settings(capsys):
     out, err = capsys.readouterr()
     for level, log_line in zip(log_levels, out.splitlines() + err.splitlines()):
         level_name = logging.getLevelName(level)
-        assert log_line == '{} : {} : {}'.format(level_name, 'logger_test', level_name + 'msg')
+        assert log_line == '{}:{}: {}'.format(level_name, 'logger_test', level_name + 'msg')
