@@ -14,7 +14,7 @@ from .utils import dict_is_part_of
 
 def test_acquisition_request(req_store_real, das, downloader_imposter):
     response = requests.post(
-        das.base_url + ACQUISITION_PATH,
+        das.url + ACQUISITION_PATH,
         json=TEST_DOWNLOAD_REQUEST,
         headers={'Authorization': TEST_AUTH_HEADER}
     )
@@ -36,7 +36,7 @@ def test_download_callback(req_store_real, das, metadata_parser_imposter):
     req_id = TEST_ACQUISITION_REQ.id
 
     response = requests.post(
-        get_download_callback_url(das.base_url, req_id=req_id),
+        get_download_callback_url(das.url, req_id=req_id),
         json=TEST_DOWNLOAD_CALLBACK,
         headers={'Authorization': TEST_AUTH_HEADER}
     )
@@ -65,7 +65,7 @@ def test_metadata_callback(req_store_real, das):
     req_id = TEST_ACQUISITION_REQ.id
 
     response = requests.post(
-        get_metadata_callback_url(das.base_url, req_id=req_id),
+        get_metadata_callback_url(das.url, req_id=req_id),
         json=TEST_METADATA_CALLBACK,
         headers={'Authorization': TEST_AUTH_HEADER}
     )
@@ -82,7 +82,7 @@ def test_uploader_request(req_store_real, das, metadata_parser_imposter):
     })
 
     response = requests.post(
-        urljoin(das.base_url, UPLOADER_REQUEST_PATH),
+        urljoin(das.url, UPLOADER_REQUEST_PATH),
         json=test_uploader_req,
         headers={'Authorization': TEST_AUTH_HEADER}
     )
@@ -115,7 +115,7 @@ def test_get_requests(req_store_real, das):
         req_store_real.put(test_request)
 
     response = requests.get(
-        urljoin(das.base_url, ACQUISITION_PATH),
+        urljoin(das.url, ACQUISITION_PATH),
         params={'orgs': TEST_ACQUISITION_REQ.orgUUID},
         headers={'Authorization': TEST_AUTH_HEADER}
     )
@@ -127,7 +127,7 @@ def test_get_requests(req_store_real, das):
 
 def test_access_to_forbidden_org(das):
     response = requests.get(
-        urljoin(das.base_url, ACQUISITION_PATH),
+        urljoin(das.url, ACQUISITION_PATH),
         params={'orgs': 'org-the-user-has-no-access-to'},
         headers={'Authorization': TEST_AUTH_HEADER}
     )

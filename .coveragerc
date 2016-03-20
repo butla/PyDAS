@@ -1,4 +1,5 @@
 [run]
+source = data_acquisition
 omit = data_acquisition/app.py
 
 [report]
