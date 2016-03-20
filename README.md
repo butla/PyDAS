@@ -1,5 +1,10 @@
 PyDAS
 =====
+
+[![Build Status](https://travis-ci.org/butla/PyDAS.svg?branch=master)](https://travis-ci.org/butla/PyDAS)
+[![Coverage Status](https://coveralls.io/repos/github/butla/PyDAS/badge.svg?branch=master)](https://coveralls.io/github/butla/PyDAS?branch=master)
+[![Requirements Status](https://requires.io/github/butla/PyDAS/requirements.svg?branch=master)](https://requires.io/github/butla/PyDAS/requirements/?branch=master)
+
 Python Data Acquisition Service
 
 ## Deployment
@@ -24,7 +29,6 @@ Due to shenanigans with offline deployments the requirements need to go into two
 
 ## TODO (optional):
 1. Extract a general configuration parsing solution.
-1. Make it run on Travis. Add coverage report.
 1. Add Swagger to service.
 1. Service test should only call the service through a Bravado generated client. Maybe separate contract tests.
 1. Merge `simulate_falcon_request` from tests into Falcon.
