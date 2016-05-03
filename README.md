@@ -5,7 +5,11 @@ PyDAS
 [![Coverage Status](https://coveralls.io/repos/github/butla/PyDAS/badge.svg?branch=master)](https://coveralls.io/github/butla/PyDAS?branch=master)
 [![Requirements Status](https://requires.io/github/butla/PyDAS/requirements.svg?branch=master)](https://requires.io/github/butla/PyDAS/requirements/?branch=master)
 
-Python Data Acquisition Service
+Python rewrite of [TAP's DAS](https://github.com/trustedanalytics/data-acquisition).
+Functionally the same as DAS from 2016-03-20 (version 0.5.8).
+
+It has full test coverage and some useful integration tests.
+It doesn't use Kafka, because it doesn't need to.
 
 ## Deployment
 * `./build_for_cf.sh`
