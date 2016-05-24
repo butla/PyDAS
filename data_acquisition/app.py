@@ -51,6 +51,7 @@ def start_queue_worker(queue):
     disable_default_worker_logging()
     queue_worker = multiprocessing.Process(target=do_work)
     signal.signal(signal.SIGTERM, terminate_handler)
+    signal.signal(signal.SIGINT, terminate_handler)
     queue_worker.start()
 
 

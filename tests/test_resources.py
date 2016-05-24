@@ -130,30 +130,6 @@ def test_external_service_call_error(mock_post):
 
 
 @responses.activate
-def test_acquisition_request(falcon_api, das_config, fake_time, mock_user_management):
-    resp_json, headers = _simulate_falcon_post(falcon_api, ACQUISITION_PATH, TEST_DOWNLOAD_REQUEST)
-
-    assert headers.status == falcon.HTTP_202
-    assert dict_is_part_of(resp_json, TEST_DOWNLOAD_REQUEST)
-
-    proper_downloader_req = {
-        'source': TEST_DOWNLOAD_REQUEST['source'],
-        'callback': get_download_callback_url(TEST_DAS_URL, resp_json['id'])
-    }
-    falcon_api.mock_queue.enqueue.assert_called_with(
-        external_service_call,
-        url=das_config.downloader_url,
-        data=proper_downloader_req,
-        hidden_token=SecretString(TEST_AUTH_HEADER)
-    )
-
-    stored_req = AcquisitionRequest(**resp_json)
-    falcon_api.mock_req_store.put.assert_called_with(stored_req)
-    assert stored_req.state == 'VALIDATED'
-    assert stored_req.timestamps['VALIDATED'] == FAKE_TIMESTAMP
-
-
-@responses.activate
 def test_acquisition_request_for_hdfs(falcon_api, das_config, fake_time, mock_user_management):
     # with hdfs:// URI, Metadata Parser will create "idInObjectStore" from "source"
     test_request = copy.deepcopy(TEST_DOWNLOAD_REQUEST)
@@ -194,39 +170,6 @@ def test_acquisition_bad_request(falcon_api):
     assert headers.status == falcon.HTTP_400
 
 
-def test_downloader_callback_ok(falcon_api, das_config, fake_time, req_store_get):
-    proper_metadata_req = {
-        'orgUUID': TEST_ACQUISITION_REQ.orgUUID,
-        'publicRequest': TEST_ACQUISITION_REQ.publicRequest,
-        'source': TEST_ACQUISITION_REQ.source,
-        'category': TEST_ACQUISITION_REQ.category,
-        'title': TEST_ACQUISITION_REQ.title,
-        'id': TEST_ACQUISITION_REQ.id,
-        'idInObjectStore': TEST_DOWNLOAD_CALLBACK['savedObjectId'],
-        'callbackUrl': get_metadata_callback_url(TEST_DAS_URL, TEST_ACQUISITION_REQ.id)
-    }
-
-    _, headers = _simulate_falcon_post(
-        api=falcon_api,
-        path=DOWNLOAD_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
-        data=TEST_DOWNLOAD_CALLBACK
-    )
-
-    assert headers.status == falcon.HTTP_200
-
-    falcon_api.mock_queue.enqueue.assert_called_with(
-        external_service_call,
-        url=das_config.metadata_parser_url,
-        data=proper_metadata_req,
-        hidden_token=SecretString(TEST_AUTH_HEADER)
-    )
-
-    updated_request = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
-    updated_request.state = 'DOWNLOADED'
-    updated_request.timestamps['DOWNLOADED'] = FAKE_TIMESTAMP
-    falcon_api.mock_req_store.put.assert_called_with(updated_request)
-
-
 def test_downloader_callback_failed(falcon_api, fake_time, req_store_get):
     failed_callback_req = dict(TEST_DOWNLOAD_CALLBACK)
     failed_callback_req['state'] = 'ERROR'
@@ -245,20 +188,6 @@ def test_downloader_callback_failed(falcon_api, fake_time, req_store_get):
     falcon_api.mock_req_store.put.assert_called_with(updated_request)
 
 
-def test_metadata_callback_ok(falcon_api, fake_time, req_store_get):
-    _, headers = _simulate_falcon_post(
-        api=falcon_api,
-        path=METADATA_PARSER_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
-        data=TEST_METADATA_CALLBACK
-    )
-
-    assert headers.status == falcon.HTTP_200
-    updated_request = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
-    updated_request.state = 'FINISHED'
-    updated_request.timestamps['FINISHED'] = FAKE_TIMESTAMP
-    falcon_api.mock_req_store.put.assert_called_with(updated_request)
-
-
 def test_metadata_callback_failed(falcon_api, fake_time, req_store_get):
     _, headers = _simulate_falcon_post(
         api=falcon_api,
@@ -271,47 +200,6 @@ def test_metadata_callback_failed(falcon_api, fake_time, req_store_get):
     updated_request.state = 'ERROR'
     updated_request.timestamps['ERROR'] = FAKE_TIMESTAMP
     falcon_api.mock_req_store.put.assert_called_with(updated_request)
-
-
-def test_uploader_request_ok(falcon_api, das_config, fake_time):
-    test_uploader_req = dict(TEST_DOWNLOAD_REQUEST)
-    test_uploader_req.update({
-        'idInObjectStore': 'fake-guid/000000_1',
-        'objectStoreId': 'hdfs://some-fake-hdfs-path',
-    })
-
-    _, headers = _simulate_falcon_post(
-        api=falcon_api,
-        path=UPLOADER_REQUEST_PATH,
-        data=test_uploader_req
-    )
-
-    assert headers.status == falcon.HTTP_200
-
-    stored_req = falcon_api.mock_req_store.put.call_args[0][0]
-    updated_request = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
-    updated_request.state = 'DOWNLOADED'
-    updated_request.timestamps['DOWNLOADED'] = FAKE_TIMESTAMP
-    updated_request.id = stored_req.id
-    assert stored_req == updated_request
-
-    proper_metadata_req = {
-        'orgUUID': TEST_ACQUISITION_REQ.orgUUID,
-        'publicRequest': TEST_ACQUISITION_REQ.publicRequest,
-        'source': TEST_ACQUISITION_REQ.source,
-        'category': TEST_ACQUISITION_REQ.category,
-        'title': TEST_ACQUISITION_REQ.title,
-        'id': stored_req.id,
-        'idInObjectStore': test_uploader_req['idInObjectStore'],
-        'callbackUrl': get_metadata_callback_url(TEST_DAS_URL, stored_req.id)
-    }
-
-    falcon_api.mock_queue.enqueue.assert_called_with(
-        external_service_call,
-        url=das_config.metadata_parser_url,
-        data=proper_metadata_req,
-        hidden_token=SecretString(TEST_AUTH_HEADER)
-    )
 
 
 def _simulate_falcon_get(api, path, query_string=''):
