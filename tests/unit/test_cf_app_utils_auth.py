@@ -58,7 +58,7 @@ def test_oauth_middleware_request_auth_valid():
     test_req = Request(create_environ(headers={'Authorization': TEST_AUTH_HEADER}))
     test_resp = Response()
 
-    auth_middleware.process_resource(test_req, test_resp, None)
+    auth_middleware.process_resource(test_req, test_resp, None, None)
     auth_middleware.process_request(test_req, test_resp)
     auth_middleware.process_response(test_req, test_resp, None)
 
@@ -73,10 +73,8 @@ def test_oauth_middleware_request_auth_invalid(headers):
     auth_middleware._verification_key = RSA_2048_PUB_KEY
 
     with pytest.raises(falcon.HTTPUnauthorized):
-        auth_middleware.process_resource(
-            Request(create_environ(headers=headers)),
-            None,
-            None)
+        auth_middleware.process_resource(Request(create_environ(headers=headers)),
+                                         None, None, None)
 
 
 @pytest.fixture(scope='function')

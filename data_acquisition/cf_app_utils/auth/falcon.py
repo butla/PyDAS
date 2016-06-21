@@ -16,6 +16,9 @@ class JwtMiddleware:
     JWT middleware for Falcon.
     """
 
+    # TODO should be more complex, see https://tools.ietf.org/html/rfc6750#section-3
+    AUTH_CHALLENGE = 'Bearer'
+
     def __init__(self):
         self._verification_key = None
         self._log = logging.getLogger(type(self).__name__)
@@ -35,7 +38,7 @@ class JwtMiddleware:
         """
         pass
 
-    def process_resource(self, req, resp, resource): #pylint: disable=unused-argument
+    def process_resource(self, req, resp, resource, params): #pylint: disable=unused-argument
         """
         Verifies the JWT token used when calling the resource.
         Some resources may have disabled this verification, when they should be publicly accessible.
@@ -44,7 +47,7 @@ class JwtMiddleware:
         if not req.auth or not req.auth.startswith('bearer '):
             err_msg = 'Authorization header missing or not containing "bearer" prefix.'
             self._log.error(err_msg)
-            raise falcon.HTTPUnauthorized('Bad Authorization header', err_msg)
+            raise falcon.HTTPUnauthorized('Bad Authorization header', err_msg, self.AUTH_CHALLENGE)
 
         token = req.auth.split()[1] # skip 'bearer'
         try:
@@ -52,7 +55,7 @@ class JwtMiddleware:
         except Exception as ex:
             err_msg = 'Verification of the JWT token has failed.'
             self._log.exception(err_msg)
-            raise falcon.HTTPUnauthorized('Invalid token', err_msg) from ex
+            raise falcon.HTTPUnauthorized('Invalid token', err_msg, self.AUTH_CHALLENGE) from ex
 
     def process_response(self, req, resp, resource):
         """
