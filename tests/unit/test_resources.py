@@ -3,14 +3,14 @@ import json
 from unittest.mock import MagicMock, patch, call
 from urllib.parse import urljoin
 
-import responses
-import requests
 import falcon
 import pytest
+import requests
+import responses
 
+import data_acquisition.app
 from data_acquisition import DasConfig
 from data_acquisition.acquisition_request import AcquisitionRequest, RequestNotFoundError
-import data_acquisition.app
 from data_acquisition.cf_app_utils.auth import USER_MANAGEMENT_PATH
 from data_acquisition.consts import (ACQUISITION_PATH, DOWNLOADER_PATH, DOWNLOAD_CALLBACK_PATH,
                                      METADATA_PARSER_PATH, METADATA_PARSER_CALLBACK_PATH,
@@ -20,8 +20,8 @@ from data_acquisition.resources import (get_download_callback_url, get_metadata_
 from tests.consts import (TEST_DOWNLOAD_REQUEST, TEST_DOWNLOAD_CALLBACK, TEST_ACQUISITION_REQ,
                           TEST_ACQUISITION_REQ_JSON, TEST_AUTH_HEADER,
                           TEST_ORG_UUID, FAKE_PERMISSION_URL, FAKE_PERMISSION_SERVICE_URL)
-from tests.utils import dict_is_part_of, simulate_falcon_request
-
+from tests.utils import (dict_is_part_of, simulate_falcon_post, simulate_falcon_delete,
+                         simulate_falcon_get)
 
 FAKE_TIME = 234.25
 FAKE_TIMESTAMP = 234
@@ -46,8 +46,7 @@ def das_config():
         downloader_url=urljoin('https://fake-downloader-url', DOWNLOADER_PATH),
         metadata_parser_url=urljoin('https://fake-metadata-url', METADATA_PARSER_PATH),
         user_management_url=urljoin(FAKE_PERMISSION_SERVICE_URL, USER_MANAGEMENT_PATH),
-        verification_key_url='http://fake-verification-key-url'
-    )
+        verification_key_url='http://fake-verification-key-url')
 
 
 @pytest.fixture(scope='function')
@@ -77,19 +76,6 @@ def mock_user_management():
     responses.add(responses.GET, FAKE_PERMISSION_URL, status=200, json=[
         {'organization': {'metadata': {'guid': TEST_ORG_UUID}}}
     ])
-
-
-def _simulate_falcon_post(api, path, data):
-    resp_body, headers = simulate_falcon_request(
-        api=api,
-        path=path,
-        body=json.dumps(data),
-        encoding='utf-8',
-        method='POST',
-        headers=[('Authorization', TEST_AUTH_HEADER)]
-    )
-    resp_json = json.loads(resp_body) if resp_body else None
-    return resp_json, headers
 
 
 def test_get_download_callback_url():
@@ -135,7 +121,7 @@ def test_acquisition_request_for_hdfs(falcon_api, das_config, fake_time, mock_us
     test_request = copy.deepcopy(TEST_DOWNLOAD_REQUEST)
     test_request['source'] = test_request['source'].replace('http://', 'hdfs://')
 
-    resp_json, headers = _simulate_falcon_post(falcon_api, ACQUISITION_PATH, test_request)
+    resp_json, headers = simulate_falcon_post(falcon_api, ACQUISITION_PATH, test_request)
 
     assert headers.status == falcon.HTTP_202
     assert dict_is_part_of(resp_json, test_request)
@@ -166,7 +152,7 @@ def test_acquisition_bad_request(falcon_api):
     broken_request = dict(TEST_DOWNLOAD_REQUEST)
     del broken_request['category']
 
-    _, headers = _simulate_falcon_post(falcon_api, ACQUISITION_PATH, broken_request)
+    _, headers = simulate_falcon_post(falcon_api, ACQUISITION_PATH, broken_request)
     assert headers.status == falcon.HTTP_400
 
 
@@ -174,7 +160,7 @@ def test_downloader_callback_failed(falcon_api, fake_time, req_store_get):
     failed_callback_req = dict(TEST_DOWNLOAD_CALLBACK)
     failed_callback_req['state'] = 'ERROR'
 
-    _, headers = _simulate_falcon_post(
+    _, headers = simulate_falcon_post(
         api=falcon_api,
         path=DOWNLOAD_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
         data=failed_callback_req
@@ -189,7 +175,7 @@ def test_downloader_callback_failed(falcon_api, fake_time, req_store_get):
 
 
 def test_metadata_callback_failed(falcon_api, fake_time, req_store_get):
-    _, headers = _simulate_falcon_post(
+    _, headers = simulate_falcon_post(
         api=falcon_api,
         path=METADATA_PARSER_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
         data={'state': 'FAILED'}
@@ -202,22 +188,9 @@ def test_metadata_callback_failed(falcon_api, fake_time, req_store_get):
     falcon_api.mock_req_store.put.assert_called_with(updated_request)
 
 
-def _simulate_falcon_get(api, path, query_string=''):
-    resp_body, headers = simulate_falcon_request(
-        api=api,
-        path=path,
-        query_string=query_string,
-        encoding='utf-8',
-        method='GET',
-        headers=[('Authorization', TEST_AUTH_HEADER)]
-    )
-    resp_json = json.loads(resp_body) if resp_body else None
-    return resp_json, headers
-
-
 @responses.activate
 def test_get_request(falcon_api, req_store_get, mock_user_management):
-    resp_json, headers = _simulate_falcon_get(
+    resp_json, headers = simulate_falcon_get(
         api=falcon_api,
         path=GET_REQUEST_PATH.format(req_id=TEST_ACQUISITION_REQ.id))
     assert headers.status == falcon.HTTP_200
@@ -226,26 +199,15 @@ def test_get_request(falcon_api, req_store_get, mock_user_management):
 
 def test_get_request_not_found(falcon_api):
     falcon_api.mock_req_store.get.side_effect = RequestNotFoundError()
-    _, headers = _simulate_falcon_get(
+    _, headers = simulate_falcon_get(
         api=falcon_api,
         path=GET_REQUEST_PATH.format(req_id='some-fake-id'))
     assert headers.status == falcon.HTTP_404
 
 
-def _simulate_falcon_delete(api, path):
-    _, headers = simulate_falcon_request(
-        api=api,
-        path=path,
-        encoding='utf-8',
-        method='DELETE',
-        headers=[('Authorization', TEST_AUTH_HEADER)]
-    )
-    return headers
-
-
 @responses.activate
 def test_delete_request(falcon_api, req_store_get, mock_user_management):
-    headers = _simulate_falcon_delete(
+    headers = simulate_falcon_delete(
         falcon_api,
         GET_REQUEST_PATH.format(req_id=TEST_ACQUISITION_REQ.id))
     assert headers.status == falcon.HTTP_200
@@ -254,7 +216,7 @@ def test_delete_request(falcon_api, req_store_get, mock_user_management):
 
 def test_delete_request_not_found(falcon_api):
     falcon_api.mock_req_store.get.side_effect = RequestNotFoundError()
-    headers = _simulate_falcon_delete(
+    headers = simulate_falcon_delete(
         falcon_api,
         GET_REQUEST_PATH.format(req_id='fake-id'))
     assert headers.status == falcon.HTTP_404
@@ -279,7 +241,7 @@ def test_get_requests_for_org(org_ids, acquisition_requests, falcon_api):
 
     falcon_api.mock_req_store.get_for_org.return_value = acquisition_requests
 
-    resp_json, headers = _simulate_falcon_get(
+    resp_json, headers = simulate_falcon_get(
         api=falcon_api,
         path=ACQUISITION_PATH,
         query_string='orgs=' + ','.join(org_ids)
