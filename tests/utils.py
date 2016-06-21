@@ -25,6 +25,50 @@ def dict_is_part_of(dict_a, dict_b):
     return True
 
 
+class FalconApiTestClient:
+    """Can be conveniently used to simulate requests to a `falcon.API`.
+
+    Args:
+        api (falcon.API): API object to send the request to.
+    """
+
+    def __init__(self, api):
+        self._api = api
+
+    def get(self, path, query_string=''):
+        resp_body, headers = simulate_falcon_request(
+            api=self._api,
+            path=path,
+            query_string=query_string,
+            encoding='utf-8',
+            method='GET',
+            headers=[('Authorization', TEST_AUTH_HEADER)]
+        )
+        resp_json = json.loads(resp_body) if resp_body else None
+        return resp_json, headers
+
+    def post(self, path, data):
+        resp_body, headers = simulate_falcon_request(
+            api=self._api,
+            path=path,
+            body=json.dumps(data),
+            encoding='utf-8',
+            method='POST',
+            headers=[('Authorization', TEST_AUTH_HEADER)]
+        )
+        resp_json = json.loads(resp_body) if resp_body else None
+        return resp_json, headers
+
+    def delete(self, path):
+        _, headers = simulate_falcon_request(
+            api=self._api,
+            path=path,
+            encoding='utf-8',
+            method='DELETE',
+            headers=[('Authorization', TEST_AUTH_HEADER)])
+        return headers
+
+
 def simulate_falcon_request(api, path='/', encoding=None, **kwargs):
     """Simulates a request to a `falcon.API`.
 
@@ -54,39 +98,3 @@ def simulate_falcon_request(api, path='/', encoding=None, **kwargs):
             final_result = ''
 
     return final_result, resp_headers
-
-
-def simulate_falcon_get(api, path, query_string=''):
-    resp_body, headers = simulate_falcon_request(
-        api=api,
-        path=path,
-        query_string=query_string,
-        encoding='utf-8',
-        method='GET',
-        headers=[('Authorization', TEST_AUTH_HEADER)]
-    )
-    resp_json = json.loads(resp_body) if resp_body else None
-    return resp_json, headers
-
-
-def simulate_falcon_post(api, path, data):
-    resp_body, headers = simulate_falcon_request(
-        api=api,
-        path=path,
-        body=json.dumps(data),
-        encoding='utf-8',
-        method='POST',
-        headers=[('Authorization', TEST_AUTH_HEADER)]
-    )
-    resp_json = json.loads(resp_body) if resp_body else None
-    return resp_json, headers
-
-
-def simulate_falcon_delete(api, path):
-    _, headers = simulate_falcon_request(
-        api=api,
-        path=path,
-        encoding='utf-8',
-        method='DELETE',
-        headers=[('Authorization', TEST_AUTH_HEADER)])
-    return headers
