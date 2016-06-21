@@ -10,8 +10,8 @@ import pytest
 import redis
 import redis.connection
 
-from .consts import (RSA_2048_PUB_KEY, TEST_VCAP_APPLICATION, TEST_VCAP_SERVICES_TEMPLATE,
-                     TEST_AUTH_HEADER, TEST_ORG_UUID)
+from tests.consts import (RSA_2048_PUB_KEY, TEST_VCAP_APPLICATION, TEST_VCAP_SERVICES_TEMPLATE,
+                          TEST_AUTH_HEADER, TEST_ORG_UUID)
 from data_acquisition.consts import DOWNLOADER_PATH, METADATA_PARSER_PATH
 from data_acquisition.acquisition_request import AcquisitionRequestStore
 
@@ -203,18 +203,14 @@ def das_session(request, vcap_services, uaa_imposter):
         '--port', '{port}',
         '--call', 'data_acquisition.app:get_app']
 
-    this_file_dir = os.path.dirname(os.path.realpath(__file__))
-    project_root_path_rel = os.path.join(this_file_dir, '..')
-    project_root_path = os.path.realpath(project_root_path_rel)
-
+    project_root_path = os.path.join(waitress_path, '../../../..')
     das_service = HttpService(
         das_command,
         env={
             'VCAP_APPLICATION': TEST_VCAP_APPLICATION,
             'VCAP_SERVICES': vcap_services,
             'VCAP_APP_PORT': '{port}',
-            'PYTHONPATH': project_root_path,
-        })
+            'PYTHONPATH': project_root_path})
 
     das_service.start()
     return das_service

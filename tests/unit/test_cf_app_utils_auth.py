@@ -10,10 +10,11 @@ import pytest
 import requests.exceptions
 import responses
 
-from .consts import (RSA_2048_PUB_KEY, TEST_AUTH_HEADER, TEST_ADMIN_AUTH_HEADER, TEST_ORG_UUID,
-                     FAKE_PERMISSION_SERVICE_URL, FAKE_PERMISSION_URL)
-from data_acquisition.cf_app_utils.auth import *
+from tests.consts import (RSA_2048_PUB_KEY, TEST_AUTH_HEADER, TEST_ADMIN_AUTH_HEADER, TEST_ORG_UUID,
+                          FAKE_PERMISSION_SERVICE_URL, FAKE_PERMISSION_URL)
 from data_acquisition.cf_app_utils.auth.falcon import JwtMiddleware, FalconUserOrgAccessChecker
+from data_acquisition.cf_app_utils.auth import (UaaError, UserOrgAccessChecker, NoOrgAccessError,
+                                                PermissionServiceError)
 import data_acquisition.cf_app_utils.logs
 
 

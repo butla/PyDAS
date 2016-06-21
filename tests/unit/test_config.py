@@ -3,7 +3,7 @@ import os
 import pytest
 
 from data_acquisition.cf_app_utils.auth import USER_MANAGEMENT_PATH
-from .consts import TEST_VCAP_APPLICATION, TEST_VCAP_SERVICES_TEMPLATE
+from tests.consts import TEST_VCAP_APPLICATION, TEST_VCAP_SERVICES_TEMPLATE
 from data_acquisition import DasConfig
 from data_acquisition.config import BadConfigurationPathError, NoServiceConfigurationError
 from data_acquisition.consts import DOWNLOADER_PATH, METADATA_PARSER_PATH

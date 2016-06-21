@@ -14,13 +14,13 @@ import data_acquisition.app
 from data_acquisition.cf_app_utils.auth import USER_MANAGEMENT_PATH
 from data_acquisition.consts import (ACQUISITION_PATH, DOWNLOADER_PATH, DOWNLOAD_CALLBACK_PATH,
                                      METADATA_PARSER_PATH, METADATA_PARSER_CALLBACK_PATH,
-                                     UPLOADER_REQUEST_PATH, GET_REQUEST_PATH)
+                                     GET_REQUEST_PATH)
 from data_acquisition.resources import (get_download_callback_url, get_metadata_callback_url,
                                         external_service_call, SecretString)
-from .consts import (TEST_DOWNLOAD_REQUEST, TEST_DOWNLOAD_CALLBACK, TEST_ACQUISITION_REQ,
-                     TEST_ACQUISITION_REQ_JSON, TEST_METADATA_CALLBACK, TEST_AUTH_HEADER,
-                     TEST_ORG_UUID, FAKE_PERMISSION_URL, FAKE_PERMISSION_SERVICE_URL)
-from .utils import dict_is_part_of, simulate_falcon_request
+from tests.consts import (TEST_DOWNLOAD_REQUEST, TEST_DOWNLOAD_CALLBACK, TEST_ACQUISITION_REQ,
+                          TEST_ACQUISITION_REQ_JSON, TEST_AUTH_HEADER,
+                          TEST_ORG_UUID, FAKE_PERMISSION_URL, FAKE_PERMISSION_SERVICE_URL)
+from tests.utils import dict_is_part_of, simulate_falcon_request
 
 
 FAKE_TIME = 234.25

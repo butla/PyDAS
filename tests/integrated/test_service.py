@@ -7,9 +7,9 @@ import requests
 from data_acquisition.consts import ACQUISITION_PATH, UPLOADER_REQUEST_PATH
 from data_acquisition.resources import get_download_callback_url, get_metadata_callback_url
 from data_acquisition.acquisition_request import AcquisitionRequest
-from .consts import (TEST_AUTH_HEADER, TEST_DOWNLOAD_REQUEST, TEST_ACQUISITION_REQ,
-                     TEST_DOWNLOAD_CALLBACK, TEST_METADATA_CALLBACK)
-from .utils import dict_is_part_of
+from tests.consts import (TEST_AUTH_HEADER, TEST_DOWNLOAD_REQUEST, TEST_ACQUISITION_REQ,
+                          TEST_DOWNLOAD_CALLBACK, TEST_METADATA_CALLBACK)
+from tests.utils import dict_is_part_of
 
 
 def test_acquisition_request(req_store_real, das, downloader_imposter):

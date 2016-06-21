@@ -8,42 +8,56 @@ import uuid
 
 
 class RequestNotFoundError(Exception):
-    """
-    Signals that a request wasn't found in a `AcquisitionRequestStore`.
-    """
+    """Signals that a request wasn't found in a `AcquisitionRequestStore`."""
     pass
 
 
 class AcquisitionRequestStore:
+    """Abstraction over Redis for storage and retrieval of `AcquisitionRequest` objects.
 
-    """
-    Abstraction over Redis for storage and retrieval of `AcquisitionRequest` objects.
+    Args:
+        redis_client (`redis.Redis`): Redis client.
     """
 
     REDIS_HASH_NAME = 'requests'
 
     def __init__(self, redis_client):
-        """
-        :param `redis.Redis` redis_client: Redis client.
-        """
         self._redis = redis_client
 
-    def put(self, acquisition_req):
+    @staticmethod
+    def get_request_redis_id(acquisition_req):
         """
-        :param `AcquisitionRequest` acquisition_req: A request that will be put in store.
+        Args:
+            acquisition_req (`AcquisitionRequest`): An acquisition request.
+
+        Returns:
+            str: Key under which the request can be stored in Redis.
+        """
+        return '{}:{}'.format(acquisition_req.orgUUID, acquisition_req.id)
+
+    def put(self, acquisition_req):
+        """Put an acquisition request in the store (Redis).
+
+        Args:
+            acquisition_req (`AcquisitionRequest`): A request that will be put in store.
         """
         self._redis.hset(
             self.REDIS_HASH_NAME,
-            '{}:{}'.format(acquisition_req.orgUUID, acquisition_req.id),
+            self.get_request_redis_id(acquisition_req),
             str(acquisition_req)
         )
 
     def get(self, req_id):
-        """
-        :param str req_id: Identifier of the individual request.
-        :return: The request with the given ID.
-        :rtype: AcquisitionRequest
-        :raises RequestNotFoundError: Request with the given ID doesn't exist.
+        """Get an acquisition request in the store (Redis).
+
+        Args:
+            req_id (str): Identifier of the individual request.
+
+        Returns:
+            `AcquisitionRequest`: The request with the given ID.
+
+        Raises:
+            `RequestNotFoundError`: Request with the given ID doesn't exist.
         """
         entries = self._redis.hgetall(self.REDIS_HASH_NAME)
         try:
@@ -54,18 +68,23 @@ class AcquisitionRequestStore:
         return AcquisitionRequest(**req_json)
 
     def delete(self, acquisition_req):
-        """
-        :param `AcquisitionRequest` acquisition_req: A request that will be put in store.
+        """Delete an acquisition request from the store (Redis).
+
+        Args:
+            acquisition_req (`AcquisitionRequest`): Request with the same ID will be deleted
+                from the store.
         """
         self._redis.hdel(
             self.REDIS_HASH_NAME,
-            '{}:{}'.format(acquisition_req.orgUUID, acquisition_req.id))
+            self.get_request_redis_id(acquisition_req))
 
     def get_for_org(self, org_id):
         """
-        :param str org_id: Organization's UUID.
-        :return: All requests for the given organization.
-        :rtype: list[AcquisitionRequest]
+        Args:
+            org_id (str): Organization's UUID.
+
+        Returns:
+            list[`AcquisitionRequest`]: All requests for the given organization.
         """
         entries = self._redis.hgetall(self.REDIS_HASH_NAME)
         filtered = (value.decode() for key, value in entries.items()
