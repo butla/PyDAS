@@ -28,13 +28,6 @@ FAKE_TIMESTAMP = 234
 TEST_DAS_URL = 'https://my-fake-url'
 
 
-class MockApi(falcon.API):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.mock_queue = MagicMock()
-        self.mock_req_store = MagicMock()
-
-
 @pytest.fixture(scope='function')
 def das_config():
     return DasConfig(
@@ -49,21 +42,31 @@ def das_config():
         verification_key_url='http://fake-verification-key-url')
 
 
+@pytest.fixture
+def mock_executor():
+    return MagicMock()
+
+
+@pytest.fixture
+def mock_req_store():
+    return MagicMock()
+
+
 @pytest.fixture(scope='function')
-def falcon_api(das_config):
-    api = MockApi()
+def falcon_api(das_config, mock_executor, mock_req_store):
+    api = falcon.API()
     data_acquisition.app.add_resources_to_routes(
         api,
-        api.mock_req_store,
-        api.mock_queue,
+        mock_req_store,
+        mock_executor,
         das_config)
     return api
 
 
 @pytest.fixture(scope='function')
-def req_store_get(falcon_api):
-    falcon_api.mock_req_store.get.return_value = copy.deepcopy(TEST_ACQUISITION_REQ)
-    return falcon_api.mock_req_store.get
+def req_store_get(mock_req_store):
+    mock_req_store.get.return_value = copy.deepcopy(TEST_ACQUISITION_REQ)
+    return mock_req_store.get
 
 
 @pytest.fixture(scope='function')
@@ -116,7 +119,8 @@ def test_external_service_call_error(mock_post):
 
 
 @responses.activate
-def test_acquisition_request_for_hdfs(falcon_api, das_config, fake_time, mock_user_management):
+def test_acquisition_request_for_hdfs(falcon_api, das_config, fake_time, mock_user_management,
+                                      mock_req_store, mock_executor):
     # with hdfs:// URI, Metadata Parser will create "idInObjectStore" from "source"
     test_request = copy.deepcopy(TEST_DOWNLOAD_REQUEST)
     test_request['source'] = test_request['source'].replace('http://', 'hdfs://')
@@ -136,14 +140,13 @@ def test_acquisition_request_for_hdfs(falcon_api, das_config, fake_time, mock_us
         'id': stored_req.id,
         'callbackUrl': get_metadata_callback_url(TEST_DAS_URL, stored_req.id)
     }
-    falcon_api.mock_queue.enqueue.assert_called_with(
+    mock_executor.submit.assert_called_with(
         external_service_call,
         url=das_config.metadata_parser_url,
         data=proper_metadata_req,
-        hidden_token=SecretString(TEST_AUTH_HEADER)
-    )
+        hidden_token=SecretString(TEST_AUTH_HEADER))
 
-    falcon_api.mock_req_store.put.assert_called_with(stored_req)
+    mock_req_store.put.assert_called_with(stored_req)
     assert stored_req.state == 'DOWNLOADED'
     assert stored_req.timestamps['DOWNLOADED'] == FAKE_TIMESTAMP
 
@@ -156,7 +159,7 @@ def test_acquisition_bad_request(falcon_api):
     assert headers.status == falcon.HTTP_400
 
 
-def test_downloader_callback_failed(falcon_api, fake_time, req_store_get):
+def test_downloader_callback_failed(falcon_api, fake_time, mock_req_store, req_store_get):
     failed_callback_req = dict(TEST_DOWNLOAD_CALLBACK)
     failed_callback_req['state'] = 'ERROR'
 
@@ -171,10 +174,10 @@ def test_downloader_callback_failed(falcon_api, fake_time, req_store_get):
     updated_request = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
     updated_request.state = 'ERROR'
     updated_request.timestamps['ERROR'] = FAKE_TIMESTAMP
-    falcon_api.mock_req_store.put.assert_called_with(updated_request)
+    mock_req_store.put.assert_called_with(updated_request)
 
 
-def test_metadata_callback_failed(falcon_api, fake_time, req_store_get):
+def test_metadata_callback_failed(falcon_api, fake_time, mock_req_store, req_store_get):
     _, headers = simulate_falcon_post(
         api=falcon_api,
         path=METADATA_PARSER_CALLBACK_PATH.format(req_id=TEST_ACQUISITION_REQ.id),
@@ -185,7 +188,7 @@ def test_metadata_callback_failed(falcon_api, fake_time, req_store_get):
     updated_request = AcquisitionRequest(**TEST_ACQUISITION_REQ_JSON)
     updated_request.state = 'ERROR'
     updated_request.timestamps['ERROR'] = FAKE_TIMESTAMP
-    falcon_api.mock_req_store.put.assert_called_with(updated_request)
+    mock_req_store.put.assert_called_with(updated_request)
 
 
 @responses.activate
@@ -197,8 +200,8 @@ def test_get_request(falcon_api, req_store_get, mock_user_management):
     assert AcquisitionRequest(**resp_json) == TEST_ACQUISITION_REQ
 
 
-def test_get_request_not_found(falcon_api):
-    falcon_api.mock_req_store.get.side_effect = RequestNotFoundError()
+def test_get_request_not_found(falcon_api, mock_req_store):
+    mock_req_store.get.side_effect = RequestNotFoundError()
     _, headers = simulate_falcon_get(
         api=falcon_api,
         path=GET_REQUEST_PATH.format(req_id='some-fake-id'))
@@ -206,16 +209,16 @@ def test_get_request_not_found(falcon_api):
 
 
 @responses.activate
-def test_delete_request(falcon_api, req_store_get, mock_user_management):
+def test_delete_request(falcon_api, mock_req_store, req_store_get, mock_user_management):
     headers = simulate_falcon_delete(
         falcon_api,
         GET_REQUEST_PATH.format(req_id=TEST_ACQUISITION_REQ.id))
     assert headers.status == falcon.HTTP_200
-    falcon_api.mock_req_store.delete.assert_called_with(TEST_ACQUISITION_REQ)
+    mock_req_store.delete.assert_called_with(TEST_ACQUISITION_REQ)
 
 
-def test_delete_request_not_found(falcon_api):
-    falcon_api.mock_req_store.get.side_effect = RequestNotFoundError()
+def test_delete_request_not_found(falcon_api, mock_req_store):
+    mock_req_store.get.side_effect = RequestNotFoundError()
     headers = simulate_falcon_delete(
         falcon_api,
         GET_REQUEST_PATH.format(req_id='fake-id'))
@@ -232,14 +235,14 @@ def test_delete_request_not_found(falcon_api):
     [TEST_ACQUISITION_REQ],
     [TEST_ACQUISITION_REQ, TEST_ACQUISITION_REQ]
 ])
-def test_get_requests_for_org(org_ids, acquisition_requests, falcon_api):
+def test_get_requests_for_org(org_ids, acquisition_requests, falcon_api, mock_req_store):
     responses.add(
         responses.GET,
         FAKE_PERMISSION_URL,
         status=200,
         json=[{'organization': {'metadata': {'guid': id}}} for id in org_ids])
 
-    falcon_api.mock_req_store.get_for_org.return_value = acquisition_requests
+    mock_req_store.get_for_org.return_value = acquisition_requests
 
     resp_json, headers = simulate_falcon_get(
         api=falcon_api,
@@ -250,4 +253,4 @@ def test_get_requests_for_org(org_ids, acquisition_requests, falcon_api):
 
     assert headers.status == falcon.HTTP_200
     assert returned_requests == acquisition_requests * len(org_ids)
-    assert falcon_api.mock_req_store.get_for_org.call_args_list == [call(id) for id in org_ids]
+    assert mock_req_store.get_for_org.call_args_list == [call(id) for id in org_ids]

@@ -1,8 +1,6 @@
 [run]
 source = data_acquisition
 parallel = true
-# TODO get rid of this when RQ worker is removed
-concurrency = multiprocessing
 
 [report]
 exclude_lines = def __repr__

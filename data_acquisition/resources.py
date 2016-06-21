@@ -91,14 +91,15 @@ class DasResource:
     Base class for other of the app's resources.
     """
 
-    def __init__(self, req_store, queue, config):
+    def __init__(self, req_store, executor, config):
         """
-        :param `.acquisition_request.AcquisitionRequestStore` req_store:
-        :param `rq.Queue` queue:
+        :param `data_acquisition.acquisition_request.AcquisitionRequestStore` req_store:
+        :param `concurrent.futures.ThreadPoolExecutor` executor: Responsible for asynchronous
+            sending of messages to other services.
         :param `data_acquisition.DasConfig` config: Configuration object for the application.
         """
         self._req_store = req_store
-        self._queue = queue
+        self._executor = executor
         self._config = config
         self._log = logging.getLogger(type(self).__name__)
 
@@ -158,12 +159,11 @@ class DasResource:
         }
         if id_in_object_store:
             metadata_parse_req['idInObjectStore'] = id_in_object_store
-        self._queue.enqueue(
+        self._executor.submit(
             external_service_call,
             url=self._config.metadata_parser_url,
             data=metadata_parse_req,
-            hidden_token=SecretString(req_auth)
-        )
+            hidden_token=SecretString(req_auth))
 
 
 class AcquisitionRequestsResource(DasResource):
@@ -172,13 +172,13 @@ class AcquisitionRequestsResource(DasResource):
     Resource governing data acquisition (download) requests.
     """
 
-    def __init__(self, req_store, queue, config):
+    def __init__(self, req_store, executor, config):
         """
         :param `.acquisition_request.AcquisitionRequestStore` req_store:
-        :param `rq.Queue` queue:
+        :param `rq.Queue` executor:
         :param `data_acquisition.DasConfig` config: Configuration object for the application.
         """
-        super().__init__(req_store, queue, config)
+        super().__init__(req_store, executor, config)
         self._download_req_validator = Validator(schema={
             'category': {'type': 'string', 'required': True},
             'orgUUID': {'type': 'string', 'required': True},
@@ -246,15 +246,14 @@ class AcquisitionRequestsResource(DasResource):
         :param AcquisitionRequest acquisition_req:
         :param str req_auth: Value of Authorization header, the token.
         """
-        self._queue.enqueue(
+        self._executor.submit(
             external_service_call,
             url=self._config.downloader_url,
             data={
                 'source': acquisition_req.source,
                 'callback': self._get_download_callback_url(acquisition_req.id)
             },
-            hidden_token=SecretString(req_auth)
-        )
+            hidden_token=SecretString(req_auth))
 
 
 class SingleAcquisitionRequestResource():
@@ -306,13 +305,13 @@ class DownloadCallbackResource(DasResource):
     Resource accepting callbacks from the Downloader.
     """
 
-    def __init__(self, req_store, queue, config):
+    def __init__(self, req_store, executor, config):
         """
         :param `.acquisition_request.AcquisitionRequestStore` req_store:
-        :param `rq.Queue` queue:
+        :param `rq.Queue` executor:
         :param `data_acquisition.DasConfig` config: Configuration object for the application.
         """
-        super().__init__(req_store, queue, config)
+        super().__init__(req_store, executor, config)
         self._callback_validator = Validator(schema={
             'id': {'type': 'string', 'required': True},
             'state': {'type': 'string', 'required': True},
@@ -351,13 +350,13 @@ class UploaderResource(DasResource):
     Resource accepting requests from Uploader.
     """
 
-    def __init__(self, req_store, queue, config):
+    def __init__(self, req_store, executor, config):
         """
         :param `.acquisition_request.AcquisitionRequestStore` req_store:
-        :param `rq.Queue` queue:
+        :param `rq.Queue` executor:
         :param `data_acquisition.DasConfig` config: Configuration object for the application.
         """
-        super().__init__(req_store, queue, config)
+        super().__init__(req_store, executor, config)
         self._uploader_req_validator = Validator(schema={
             'category': {'type': 'string', 'required': True},
             'orgUUID': {'type': 'string', 'required': True},

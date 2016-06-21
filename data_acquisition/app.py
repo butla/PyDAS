@@ -3,14 +3,11 @@ Application for downloading data sets from the web.
 This file is used to create the WSGI app that can be embedded in a container.
 """
 
+from concurrent.futures import ThreadPoolExecutor
 import logging
-import multiprocessing
-import signal
-import sys
 
 import falcon
 import redis
-import rq
 
 from .cf_app_utils.auth.falcon import JwtMiddleware
 from .cf_app_utils import configure_logging
@@ -22,59 +19,27 @@ from .resources import (AcquisitionRequestsResource, SingleAcquisitionRequestRes
                         DownloadCallbackResource, UploaderResource, MetadataCallbackResource)
 
 
-def start_queue_worker(queue):
-    """
-    Starts a process processing requests put into the Redis queue.
-    """
-    def do_work():
-        """
-        Function that actually consumes the tasks from queue.
-        """
-        with rq.Connection(queue.connection):
-            rq.Worker(queue, default_result_ttl=0).work()
-
-    def terminate_handler(*_):
-        """
-        Stops Redis queue worker process when this process receives the terminate signal.
-        """
-        queue_worker.terminate()
-        sys.exit(0)
-
-    def disable_default_worker_logging():
-        """
-        RQ worker, sadly, set's up a logging handler
-        that duplicates the log messages for this application's setup.
-        """
-        logging.getLogger('rq.worker').addHandler(logging.NullHandler())
-
-    logging.info('Starting queue worker process...')
-    disable_default_worker_logging()
-    queue_worker = multiprocessing.Process(target=do_work)
-    signal.signal(signal.SIGTERM, terminate_handler)
-    signal.signal(signal.SIGINT, terminate_handler)
-    queue_worker.start()
-
-
-def add_resources_to_routes(application, requests_store, queue, config):
+def add_resources_to_routes(application, requests_store, executor, config):
     """
     Creates REST resources for the application and puts them on proper paths.
     :param `falcon.API` application: A Falcon application.
     :param `.acquisition_request.AcquisitionRequestStore` req_store:
-    :param `rq.Queue` queue:
+    :param `concurrent.futures.Executor` executor: Object that will run background jobs for the
+        application.
     :param `data_acquisition.DasConfig` config: Configuration object for the application.
     """
     application.add_route(
         ACQUISITION_PATH,
-        AcquisitionRequestsResource(requests_store, queue, config))
+        AcquisitionRequestsResource(requests_store, executor, config))
     application.add_route(
         GET_REQUEST_PATH,
         SingleAcquisitionRequestResource(requests_store, config))
     application.add_route(
         DOWNLOAD_CALLBACK_PATH,
-        DownloadCallbackResource(requests_store, queue, config))
+        DownloadCallbackResource(requests_store, executor, config))
     application.add_route(
         UPLOADER_REQUEST_PATH,
-        UploaderResource(requests_store, queue, config))
+        UploaderResource(requests_store, executor, config))
     application.add_route(
         METADATA_PARSER_CALLBACK_PATH,
         MetadataCallbackResource(requests_store, config))
@@ -87,22 +52,17 @@ def get_app():
     configure_logging(logging.INFO)
     config = DasConfig.get_config()
 
-    redis_client_args = {
-        'host': config.redis_host,
-        'port': config.redis_port,
-        'password': config.redis_password
-    }
-    redis_client_store = redis.Redis(db=0, **redis_client_args)
-    assert redis_client_store.ping()
+    redis_client = redis.Redis(host=config.redis_host, port=config.redis_port,
+                               password=config.redis_password, db=0)
+    assert redis_client.ping()
 
-    requests_store = AcquisitionRequestStore(redis_client_store)
-    queue = rq.Queue(connection=redis.Redis(db=1, **redis_client_args))
+    requests_store = AcquisitionRequestStore(redis_client)
+    executor = ThreadPoolExecutor(4)
 
     auth_middleware = JwtMiddleware()
     auth_middleware.initialize(config.verification_key_url)
 
     application = falcon.API(middleware=auth_middleware)
-    add_resources_to_routes(application, requests_store, queue, config)
+    add_resources_to_routes(application, requests_store, executor, config)
 
-    start_queue_worker(queue)
     return application
