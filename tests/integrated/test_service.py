@@ -8,7 +8,7 @@ from data_acquisition.consts import ACQUISITION_PATH, UPLOADER_REQUEST_PATH
 from data_acquisition.resources import get_download_callback_url, get_metadata_callback_url
 from data_acquisition.acquisition_request import AcquisitionRequest
 from tests.consts import (TEST_AUTH_HEADER, TEST_DOWNLOAD_REQUEST, TEST_ACQUISITION_REQ,
-                          TEST_DOWNLOAD_CALLBACK, TEST_METADATA_CALLBACK)
+                          TEST_DOWNLOAD_CALLBACK, TEST_METADATA_CALLBACK, TEST_ORG_UUID)
 from tests.utils import dict_is_part_of
 
 
@@ -129,8 +129,14 @@ def test_access_to_forbidden_org(das):
     response = requests.get(
         urljoin(das.url, ACQUISITION_PATH),
         params={'orgs': 'org-the-user-has-no-access-to'},
-        headers={'Authorization': TEST_AUTH_HEADER}
-    )
+        headers={'Authorization': TEST_AUTH_HEADER})
     assert response.status_code == 403
 
-# TODO test that middleware is working (invalid token)
+
+def test_access_with_invalid_token(das):
+    header_with_invalid_signature = TEST_AUTH_HEADER[:-1] + 'P'
+    response = requests.get(
+        urljoin(das.url, ACQUISITION_PATH),
+        params={'orgs': TEST_ORG_UUID},
+        headers={'Authorization': header_with_invalid_signature})
+    assert response.status_code == 401
