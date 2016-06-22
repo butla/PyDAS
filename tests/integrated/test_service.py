@@ -1,5 +1,6 @@
 import copy
 import json
+import time
 from urllib.parse import urljoin
 
 import requests
@@ -126,6 +127,8 @@ def test_get_requests(req_store_real, das):
 
 
 def test_access_to_forbidden_org(das):
+    # Only one organization is allowed by the User Management impostor (bound to "das" fixture).
+    # That's why this should fail.
     response = requests.get(
         urljoin(das.url, ACQUISITION_PATH),
         params={'orgs': 'org-the-user-has-no-access-to'},
@@ -140,3 +143,24 @@ def test_access_with_invalid_token(das):
         params={'orgs': TEST_ORG_UUID},
         headers={'Authorization': header_with_invalid_signature})
     assert response.status_code == 401
+
+
+def test_mark_request_failed_on_failed_connection_to_external_service(
+        das, downloader_imposter, req_store_real):
+    # simulating that the external service is unavailable
+    downloader_imposter.destroy()
+
+    response = requests.post(
+        das.url + ACQUISITION_PATH,
+        json=TEST_DOWNLOAD_REQUEST,
+        headers={'Authorization': TEST_AUTH_HEADER}
+    )
+    req_id = response.json()['id']
+
+    start_time = time.perf_counter()
+    while True:
+        if time.perf_counter() - start_time >= 2.0:
+            assert False, "Request state didn't change to ERROR after some time."
+        elif req_store_real.get(req_id).state == 'ERROR':
+            break
+        time.sleep(0.001)

@@ -36,55 +36,6 @@ def get_metadata_callback_url(das_url, req_id):
     return urljoin(das_url, METADATA_PARSER_CALLBACK_PATH.format(req_id=req_id))
 
 
-class SecretString:
-
-    """
-    A wrapper for a string that makes it not visible in the logs.
-    """
-
-    def __init__(self, string):
-        self.string = string
-
-    def __repr__(self):
-        return 'SecretString()'
-
-    def __eq__(self, other):
-        return self.value() == other.value()
-
-    def value(self):
-        """
-        Get the value of the string wrapped by this object.
-        """
-        return self.string
-
-
-def external_service_call(url, data, hidden_token):
-    """
-    Sends a request to an external service.
-    When passing this function to Redis queue the user's token isn't logged.
-    :param str url: URL for the call.
-    :param dict data: The data to be sent.
-    :param `SecretString` hidden_token: Wrapped user's OAuth token.
-    :returns: True when request succeeds, false otherwise.
-    :rtype: bool
-    """
-    try:
-        resp = requests.post(url, json=data, headers={'Authorization': hidden_token.value()})
-        if resp.ok:
-            LOG.info('Successful request to %s with data %s', url, data)
-            return True
-        else:
-            LOG.error(
-                'Request failed:\nURL: %s\ndata: %s\nservice response:%s',
-                url,
-                data,
-                resp.text
-            )
-    except requests.exceptions.ConnectionError:
-        LOG.exception('Error when sending a request to %s with data %s', url, data)
-    return False
-
-
 class DasResource:
 
     """
@@ -160,10 +111,40 @@ class DasResource:
         if id_in_object_store:
             metadata_parse_req['idInObjectStore'] = id_in_object_store
         self._executor.submit(
-            external_service_call,
+            self._external_service_call,
             url=self._config.metadata_parser_url,
             data=metadata_parse_req,
-            hidden_token=SecretString(req_auth))
+            token=req_auth,
+            request_id=acquisition_req.id)
+
+    def _external_service_call(self, url, data, token, request_id):
+        """
+        Sends a request to an external service.
+        :param str url: URL for the call.
+        :param dict data: The data to be sent.
+        :param str token: User's OAuth token.
+        :param str request_id: ID of an `AcquisitionRequest` that will be marked as failed if
+            the call to the external service fails.
+        :returns: True when request succeeds, false otherwise.
+        :rtype: bool
+        """
+        try:
+            resp = requests.post(url, json=data, headers={'Authorization': token})
+            if resp.ok:
+                LOG.info('Successful request to %s with data %s', url, data)
+                return True
+            else:
+                LOG.error(
+                    'Request failed:\nURL: %s\ndata: %s\nrequest ID: %s\nservice response:%s',
+                    url, data, request_id, resp.text)
+        except requests.exceptions.ConnectionError:
+            LOG.exception('Error when sending a request:\nURL: %s\ndata: %s\nrequest ID: %s',
+                          url, data, request_id)
+
+        acquisition_req = self._req_store.get(request_id)
+        acquisition_req.set_error()
+        self._req_store.put(acquisition_req)
+        return False
 
 
 class AcquisitionRequestsResource(DasResource):
@@ -198,13 +179,7 @@ class AcquisitionRequestsResource(DasResource):
         acquisition_req = self._get_acquisition_req(req)
         self._org_checker.validate_access(req.auth, [acquisition_req.orgUUID])
 
-        if acquisition_req.source.startswith('hdfs://'):
-            acquisition_req.set_downloaded()
-            self._req_store.put(acquisition_req)
-            self._enqueue_metadata_request(acquisition_req, None, req.auth)
-        else:
-            self._req_store.put(acquisition_req)
-            self._enqueue_downloader_request(acquisition_req, req.auth)
+        self._process_acquisition_request(acquisition_req, req.auth)
 
         resp.body = str(acquisition_req)
         resp.status = falcon.HTTP_ACCEPTED
@@ -238,6 +213,15 @@ class AcquisitionRequestsResource(DasResource):
         acquisition_req.set_validated()
         return acquisition_req
 
+    def _process_acquisition_request(self, acquisition_req, request_auth_header):
+        if acquisition_req.source.startswith('hdfs://'):
+            acquisition_req.set_downloaded()
+            self._req_store.put(acquisition_req)
+            self._enqueue_metadata_request(acquisition_req, None, request_auth_header)
+        else:
+            self._req_store.put(acquisition_req)
+            self._enqueue_downloader_request(acquisition_req, request_auth_header)
+
     def _enqueue_downloader_request(self, acquisition_req, req_auth):
         """
         Queues sending a request to Downloader.
@@ -247,13 +231,14 @@ class AcquisitionRequestsResource(DasResource):
         :param str req_auth: Value of Authorization header, the token.
         """
         self._executor.submit(
-            external_service_call,
+            self._external_service_call,
             url=self._config.downloader_url,
             data={
                 'source': acquisition_req.source,
                 'callback': self._get_download_callback_url(acquisition_req.id)
             },
-            hidden_token=SecretString(req_auth))
+            token=req_auth,
+            request_id=acquisition_req.id)
 
 
 class SingleAcquisitionRequestResource():
@@ -423,5 +408,3 @@ class MetadataCallbackResource(DasResource):
                             acquisition_req.title, acquisition_req.id)
             acquisition_req.set_error()
             self._req_store.put(acquisition_req)
-
-# TODO split this file into smaller ones

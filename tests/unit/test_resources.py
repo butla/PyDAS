@@ -1,11 +1,9 @@
 import copy
-import json
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, call
 from urllib.parse import urljoin
 
 import falcon
 import pytest
-import requests
 import responses
 
 import data_acquisition.app
@@ -16,11 +14,11 @@ from data_acquisition.consts import (ACQUISITION_PATH, DOWNLOADER_PATH, DOWNLOAD
                                      METADATA_PARSER_PATH, METADATA_PARSER_CALLBACK_PATH,
                                      GET_REQUEST_PATH)
 from data_acquisition.resources import (get_download_callback_url, get_metadata_callback_url,
-                                        external_service_call, SecretString)
+                                        AcquisitionRequestsResource)
 from tests.consts import (TEST_DOWNLOAD_REQUEST, TEST_DOWNLOAD_CALLBACK, TEST_ACQUISITION_REQ,
-                          TEST_ACQUISITION_REQ_JSON, TEST_AUTH_HEADER,
-                          TEST_ORG_UUID, FAKE_PERMISSION_URL, FAKE_PERMISSION_SERVICE_URL)
-from tests.utils import dict_is_part_of, FalconApiTestClient
+                          TEST_ACQUISITION_REQ_JSON, TEST_ORG_UUID, FAKE_PERMISSION_URL,
+                          FAKE_PERMISSION_SERVICE_URL)
+from tests.utils import FalconApiTestClient
 
 FAKE_TIME = 234.25
 FAKE_TIMESTAMP = 234
@@ -63,6 +61,11 @@ def test_client(das_config, mock_executor, mock_req_store):
 
 
 @pytest.fixture(scope='function')
+def acquisition_requests_resource(das_config, mock_executor, mock_req_store, fake_time):
+    return AcquisitionRequestsResource(mock_req_store, mock_executor, das_config)
+
+
+@pytest.fixture(scope='function')
 def req_store_get(mock_req_store):
     mock_req_store.get.return_value = copy.deepcopy(TEST_ACQUISITION_REQ)
     return mock_req_store.get
@@ -91,63 +94,28 @@ def test_get_metadata_callback_url():
 
 
 @responses.activate
-def test_external_service_call_ok():
-    test_url = 'https://some-fake-url/'
-    test_token = 'bearer fake-token'
-    test_json = {'a': 'b'}
-    responses.add(responses.POST, test_url, status=200)
-
-    assert external_service_call(test_url, test_json, SecretString(test_token))
-    assert responses.calls[0].request.url == test_url
-    assert responses.calls[0].request.body == json.dumps(test_json)
-    assert responses.calls[0].request.headers['Authorization'] == test_token
-
-
-@responses.activate
-def test_external_service_call_not_ok():
+def test_external_service_call_not_ok(acquisition_requests_resource):
     test_url = 'https://some-fake-url/'
     responses.add(responses.POST, test_url, status=404)
 
-    assert not external_service_call(test_url, {'a': 'b'}, SecretString('bearer fake-token'))
+    assert not acquisition_requests_resource._external_service_call(
+        url=test_url, data={'a': 'b'}, token='bearer fake-token', request_id='some-fake-id')
 
 
-@patch('data_acquisition.resources.requests.post')
-def test_external_service_call_error(mock_post):
-    mock_post.side_effect = requests.exceptions.ConnectionError()
-    assert not external_service_call('https://bla', {'a': 'b'}, SecretString('bearer fake-token'))
+def test_processing_acquisition_request_for_hdfs(acquisition_requests_resource, mock_req_store):
+    mock_enqueue_metadata_req = MagicMock()
+    acquisition_requests_resource._enqueue_metadata_request = mock_enqueue_metadata_req
 
+    hdfs_acquisition_req = copy.deepcopy(TEST_ACQUISITION_REQ)
+    hdfs_acquisition_req.source = TEST_ACQUISITION_REQ.source.replace('http://', 'hdfs://')
+    proper_saved_request = copy.deepcopy(hdfs_acquisition_req)
+    proper_saved_request.set_downloaded()
+    fake_token = 'bearer asdasdasdasd'
 
-@responses.activate
-def test_acquisition_request_for_hdfs(test_client, das_config, fake_time, mock_user_management,
-                                      mock_req_store, mock_executor):
-    # with hdfs:// URI, Metadata Parser will create "idInObjectStore" from "source"
-    test_request = copy.deepcopy(TEST_DOWNLOAD_REQUEST)
-    test_request['source'] = test_request['source'].replace('http://', 'hdfs://')
+    acquisition_requests_resource._process_acquisition_request(hdfs_acquisition_req, fake_token)
 
-    resp_json, headers = test_client.post(ACQUISITION_PATH, test_request)
-
-    assert headers.status == falcon.HTTP_202
-    assert dict_is_part_of(resp_json, test_request)
-
-    stored_req = AcquisitionRequest(**resp_json)
-    proper_metadata_req = {
-        'orgUUID': TEST_ACQUISITION_REQ.orgUUID,
-        'publicRequest': TEST_ACQUISITION_REQ.publicRequest,
-        'source': TEST_ACQUISITION_REQ.source.replace('http://', 'hdfs://'),
-        'category': TEST_ACQUISITION_REQ.category,
-        'title': TEST_ACQUISITION_REQ.title,
-        'id': stored_req.id,
-        'callbackUrl': get_metadata_callback_url(TEST_DAS_URL, stored_req.id)
-    }
-    mock_executor.submit.assert_called_with(
-        external_service_call,
-        url=das_config.metadata_parser_url,
-        data=proper_metadata_req,
-        hidden_token=SecretString(TEST_AUTH_HEADER))
-
-    mock_req_store.put.assert_called_with(stored_req)
-    assert stored_req.state == 'DOWNLOADED'
-    assert stored_req.timestamps['DOWNLOADED'] == FAKE_TIMESTAMP
+    mock_enqueue_metadata_req.assert_called_with(proper_saved_request, None, fake_token)
+    mock_req_store.put.assert_called_with(proper_saved_request)
 
 
 def test_acquisition_bad_request(test_client):
