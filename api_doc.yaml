@@ -1,0 +1,80 @@
+swagger: '2.0'
+
+info:
+  version: '0.6.0'
+  title: Data Acquisition Service (DAS)
+consumes:
+  - application/json
+produces:
+  - application/json
+
+paths:
+  /rest/das/requests:
+    post:
+      operationId: submitAcquisitionRequest
+      description: |
+        Request acquisition (download) of a data set into the platform.
+        Acquisition is an asynchronous operation.
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/AcquisitionRequest'
+      responses:
+        '202':
+          description: Acquisition request submitted
+          schema:
+            $ref: '#/definitions/SubmittedAcquisitionRequest'
+
+definitions:
+  AcquisitionRequest:
+    type: object
+    required:
+    - title
+    - source
+    - category
+    - orgUUID
+    - publicRequest
+    properties:
+      title:
+        type: string
+      source:
+        type: string
+        format: url
+      category:
+        type: string
+      orgUUID:
+        type: string
+        format: uuid
+      publicRequest:
+        type: boolean
+
+  SubmittedAcquisitionRequest:
+    type: object
+    required:
+    - id
+    - title
+    - source
+    - category
+    - orgUUID
+    - publicRequest
+    - state
+    - timestamps
+    properties:
+      id:
+        type: string
+      title:
+        type: string
+      source:
+        type: string
+      category:
+        type: string
+      orgUUID:
+        type: string
+      publicRequest:
+        type: boolean
+      state:
+        type: string
+      timestamps:
+        type: object

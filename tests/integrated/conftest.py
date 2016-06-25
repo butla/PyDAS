@@ -2,7 +2,9 @@ import json
 import os
 import sys
 import time
+import yaml
 
+from bravado.client import SwaggerClient
 import docker
 from mountepy import Mountebank, HttpService
 import port_for
@@ -10,6 +12,7 @@ import pytest
 import redis
 import redis.connection
 
+import tests
 from tests.consts import (RSA_2048_PUB_KEY, TEST_VCAP_APPLICATION, TEST_VCAP_SERVICES_TEMPLATE,
                           TEST_AUTH_HEADER, TEST_ORG_UUID)
 from data_acquisition.consts import DOWNLOADER_PATH, METADATA_PARSER_PATH
@@ -222,3 +225,12 @@ def das(das_session,
         metadata_parser_imposter,
         user_management_imposter):
     return das_session
+
+
+@pytest.fixture(scope='session')
+def das_client(das_session):
+    spec_file_path = os.path.join(tests.__path__[0], '../api_doc.yaml')
+    with open(spec_file_path) as spec_file:
+        swagger_spec = yaml.load(spec_file)
+
+    return SwaggerClient.from_spec(swagger_spec, origin_url=das_session.url)

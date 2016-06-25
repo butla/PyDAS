@@ -172,7 +172,8 @@ class AcquisitionRequestsResource(DasResource):
 
     def on_post(self, req, resp):
         """
-        Requesting a new data set download.
+        Request acquisition (download) of a data set into the platform.
+        Acquisition is an asynchronous operation.
         :param `falcon.Request` req:
         :param `falcon.Response` resp:
         """

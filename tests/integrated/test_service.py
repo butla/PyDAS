@@ -13,35 +13,42 @@ from tests.consts import (TEST_AUTH_HEADER, TEST_DOWNLOAD_REQUEST, TEST_ACQUISIT
 from tests.utils import dict_is_part_of
 
 
-def test_acquisition_request(req_store_real, das, downloader_imposter):
-    response = requests.post(
-        das.url + ACQUISITION_PATH,
-        json=TEST_DOWNLOAD_REQUEST,
-        headers={'Authorization': TEST_AUTH_HEADER}
-    )
-    req_id = response.json()['id']
+def test_acquisition_request(das, das_client, req_store_real, downloader_imposter):
+    # arrange
+    SwaggerAcquisitionRequest = das_client.get_model('AcquisitionRequest')
+    request_body = SwaggerAcquisitionRequest(**TEST_DOWNLOAD_REQUEST)
 
-    assert response.status_code == 202
-    assert req_store_real.get(req_id).state == 'VALIDATED'
+    # act
+    resp_object = das_client.rest.submitAcquisitionRequest(
+        body=request_body,
+        _request_options={
+            'url': das.url,
+            'headers': {'authorization': TEST_AUTH_HEADER}
+        }).result()
+
+    # assert
+    assert req_store_real.get(resp_object.id).state == 'VALIDATED'
 
     request_to_imposter = downloader_imposter.wait_for_requests()[0]
     assert json.loads(request_to_imposter.body) == {
         'source': TEST_DOWNLOAD_REQUEST['source'],
-        'callback': get_download_callback_url('https://das.example.com', req_id)
+        'callback': get_download_callback_url('https://das.example.com', resp_object.id)
     }
     assert dict_is_part_of(request_to_imposter.headers, {'authorization': TEST_AUTH_HEADER})
 
 
 def test_download_callback(req_store_real, das, metadata_parser_imposter):
+    # arrange
     req_store_real.put(TEST_ACQUISITION_REQ)
     req_id = TEST_ACQUISITION_REQ.id
 
+    # act
     response = requests.post(
         get_download_callback_url(das.url, req_id=req_id),
         json=TEST_DOWNLOAD_CALLBACK,
-        headers={'Authorization': TEST_AUTH_HEADER}
-    )
+        headers={'Authorization': TEST_AUTH_HEADER})
 
+    # assert
     assert response.status_code == 200
     assert req_store_real.get(req_id).state == 'DOWNLOADED'
 
@@ -68,26 +75,27 @@ def test_metadata_callback(req_store_real, das):
     response = requests.post(
         get_metadata_callback_url(das.url, req_id=req_id),
         json=TEST_METADATA_CALLBACK,
-        headers={'Authorization': TEST_AUTH_HEADER}
-    )
+        headers={'Authorization': TEST_AUTH_HEADER})
 
     assert response.status_code == 200
     assert req_store_real.get(req_id).state == 'FINISHED'
 
 
 def test_uploader_request(req_store_real, das, metadata_parser_imposter):
+    # arrange
     test_uploader_req = dict(TEST_DOWNLOAD_REQUEST)
     test_uploader_req.update({
         'idInObjectStore': 'fake-guid/000000_1',
         'objectStoreId': 'hdfs://some-fake-hdfs-path',
     })
 
+    # act
     response = requests.post(
         urljoin(das.url, UPLOADER_REQUEST_PATH),
         json=test_uploader_req,
-        headers={'Authorization': TEST_AUTH_HEADER}
-    )
+        headers={'Authorization': TEST_AUTH_HEADER})
 
+    # assert
     assert response.status_code == 200
     stored_request = req_store_real.get_for_org(test_uploader_req['orgUUID'])[0]
     assert stored_request.state == 'DOWNLOADED'
@@ -118,8 +126,7 @@ def test_get_requests(req_store_real, das):
     response = requests.get(
         urljoin(das.url, ACQUISITION_PATH),
         params={'orgs': TEST_ACQUISITION_REQ.orgUUID},
-        headers={'Authorization': TEST_AUTH_HEADER}
-    )
+        headers={'Authorization': TEST_AUTH_HEADER})
 
     assert response.status_code == 200
     returned_requests = [AcquisitionRequest(**req_json) for req_json in response.json()]
@@ -153,8 +160,7 @@ def test_mark_request_failed_on_failed_connection_to_external_service(
     response = requests.post(
         das.url + ACQUISITION_PATH,
         json=TEST_DOWNLOAD_REQUEST,
-        headers={'Authorization': TEST_AUTH_HEADER}
-    )
+        headers={'Authorization': TEST_AUTH_HEADER})
     req_id = response.json()['id']
 
     start_time = time.perf_counter()
