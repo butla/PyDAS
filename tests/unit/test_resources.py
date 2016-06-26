@@ -12,7 +12,7 @@ from data_acquisition.resources import (get_download_callback_url, get_metadata_
                                         AcquisitionRequestsResource)
 from tests.consts import (TEST_DOWNLOAD_REQUEST, TEST_DOWNLOAD_CALLBACK, TEST_ACQUISITION_REQ,
                           TEST_ACQUISITION_REQ_JSON, TEST_ORG_UUID, FAKE_PERMISSION_URL)
-from tests.utils import FalconApiTestClient
+from tests.falcon_testing import FalconApiTestClient
 
 FAKE_TIME = 234.25
 FAKE_TIMESTAMP = 234

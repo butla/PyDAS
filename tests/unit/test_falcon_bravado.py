@@ -6,7 +6,8 @@ import yaml
 
 import tests
 from tests.consts import TEST_DOWNLOAD_REQUEST
-from tests.utils import FalconTestHttpClient
+from tests.falcon_bravado import FalconTestHttpClient
+
 
 # TODO this is just a test to check if bravado integration is working
 def test_acquisition_request_with_swagger(falcon_api, monkeypatch):
