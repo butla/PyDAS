@@ -61,23 +61,20 @@ def start_redis_container(docker_client):
     return container_id, redis_port
 
 
-@pytest.fixture(scope='session')
-def redis_port(request):
+@pytest.yield_fixture(scope='session')
+def redis_port():
     """
     Fixture that creates a Docker container with Redis for the whole test session.
     :return: Localhost's port on which Redis will listen.
     :rtype: int
     """
-    def fin():
-        docker_client.remove_container(container_id, force=True)
-    request.addfinalizer(fin)
-
     # TODO add a clear message about Docker installation, if it isn't found
     # TODO also warn about configuring a proxy in /etc/config/docker
     docker_client = docker.Client(version='auto')
     download_image_if_missing(docker_client)
     container_id, redis_port = start_redis_container(docker_client)
-    return redis_port
+    yield redis_port
+    docker_client.remove_container(container_id, force=True)
 
 
 @pytest.fixture(scope='session')
