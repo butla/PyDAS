@@ -82,12 +82,10 @@ def redis_client_session(redis_port):
     return redis.Redis(port=redis_port, db=0)
 
 
-@pytest.fixture(scope='function')
-def redis_client(request, redis_client_session):
-    def fin():
-        redis_client_session.flushdb()
-    request.addfinalizer(fin)
-    return redis_client_session
+@pytest.yield_fixture(scope='function')
+def redis_client(redis_client_session):
+    yield redis_client_session
+    redis_client_session.flushdb()
 
 
 @pytest.fixture(scope='function')
@@ -191,12 +189,8 @@ def vcap_services(redis_port):
     )
 
 
-@pytest.fixture(scope='session')
-def das_session(request, vcap_services, uaa_imposter):
-    def fin():
-        das_service.stop()
-    request.addfinalizer(fin)
-
+@pytest.yield_fixture(scope='session')
+def das_session(vcap_services, uaa_imposter):
     waitress_path = os.path.join(os.path.dirname(sys.executable), 'waitress-serve')
     das_command = [
         waitress_path,
@@ -213,7 +207,8 @@ def das_session(request, vcap_services, uaa_imposter):
             'PYTHONPATH': project_root_path})
 
     das_service.start()
-    return das_service
+    yield das_service
+    das_service.stop()
 
 
 @pytest.fixture(scope='function')
