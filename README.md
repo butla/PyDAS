@@ -1,7 +1,8 @@
 PyDAS
 =====
 
-[![Build Status](https://travis-ci.org/butla/PyDAS.svg?branch=master)](https://travis-ci.org/butla/PyDAS)
+[![Travis Build](https://travis-ci.org/butla/PyDAS.svg?branch=master)](https://travis-ci.org/butla/PyDAS)
+[![SnapCI Build](https://snap-ci.com/butla/PyDAS/branch/master/build_image)](https://snap-ci.com/butla/PyDAS/branch/master)
 [![Coverage Status](https://coveralls.io/repos/github/butla/PyDAS/badge.svg?branch=master)](https://coveralls.io/github/butla/PyDAS?branch=master)
 [![Requirements Status](https://requires.io/github/butla/PyDAS/requirements.svg?branch=master)](https://requires.io/github/butla/PyDAS/requirements/?branch=master)
 
