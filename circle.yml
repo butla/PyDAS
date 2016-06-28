@@ -1,0 +1,7 @@
+machine:
+  services:
+  - docker
+
+  python:
+    version: 3.4.2
+
