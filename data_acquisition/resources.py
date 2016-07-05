@@ -147,7 +147,7 @@ class DasResource:
         return False
 
 
-class AcquisitionRequestsResource(DasResource):
+class AcquisitionResource(DasResource):
 
     """
     Resource governing data acquisition (download) requests.
@@ -242,7 +242,7 @@ class AcquisitionRequestsResource(DasResource):
             request_id=acquisition_req.id)
 
 
-class SingleAcquisitionRequestResource():
+class RequestManagementResource():
 
     """
     Resource for getting and deleting a single acquisition request.

@@ -15,40 +15,51 @@ from .config import DasConfig
 from .consts import (ACQUISITION_PATH, DOWNLOAD_CALLBACK_PATH, UPLOADER_REQUEST_PATH,
                      METADATA_PARSER_CALLBACK_PATH, GET_REQUEST_PATH)
 from .acquisition_request import AcquisitionRequestStore
-from .resources import (AcquisitionRequestsResource, SingleAcquisitionRequestResource,
+from .resources import (AcquisitionResource, RequestManagementResource,
                         DownloadCallbackResource, UploaderResource, MetadataCallbackResource)
 
 
-def add_resources_to_routes(application, requests_store, executor, config):
+class DasApi:
+    """Creates a Falcon API with DAS resources on proper routes.
+    Eases testing of the resources by allowing to switch them out.
+
+    Args:
+        requests_store (`data_acquisition.acquisition_request.AcquisitionRequestStore`):
+        executor (`concurrent.futures.Executor`): Object that will run background jobs for the
+            application.
+        config (`data_acquisition.DasConfig`): Configuration object for the application.
+        middleware: An object conforming to Falcon middleware specifications.
     """
-    Creates REST resources for the application and puts them on proper paths.
-    :param `falcon.API` application: A Falcon application.
-    :param `.acquisition_request.AcquisitionRequestStore` req_store:
-    :param `concurrent.futures.Executor` executor: Object that will run background jobs for the
-        application.
-    :param `data_acquisition.DasConfig` config: Configuration object for the application.
-    """
-    application.add_route(
-        ACQUISITION_PATH,
-        AcquisitionRequestsResource(requests_store, executor, config))
-    application.add_route(
-        GET_REQUEST_PATH,
-        SingleAcquisitionRequestResource(requests_store, config))
-    application.add_route(
-        DOWNLOAD_CALLBACK_PATH,
-        DownloadCallbackResource(requests_store, executor, config))
-    application.add_route(
-        UPLOADER_REQUEST_PATH,
-        UploaderResource(requests_store, executor, config))
-    application.add_route(
-        METADATA_PARSER_CALLBACK_PATH,
-        MetadataCallbackResource(requests_store, config))
+
+    def __init__(self, requests_store, executor, config, middleware=None):
+        self.middleware = middleware
+
+        self.acquisition_res = AcquisitionResource(requests_store, executor, config)
+        self.request_management_res = RequestManagementResource(requests_store, config)
+        self.download_callback_res = DownloadCallbackResource(requests_store, executor, config)
+        self.metadata_callback_res = MetadataCallbackResource(requests_store, config)
+        self.uploader_res = UploaderResource(requests_store, executor, config)
+
+    def get_falcon_api(self):
+        """
+        Returns:
+            `falcon.API`: A fully configured Falcon application.
+        """
+        api = falcon.API(middleware=self.middleware)
+        self._add_routes(api)
+        return api
+
+    def _add_routes(self, api):
+        api.add_route(ACQUISITION_PATH, self.acquisition_res)
+        api.add_route(GET_REQUEST_PATH, self.request_management_res)
+        api.add_route(DOWNLOAD_CALLBACK_PATH, self.download_callback_res)
+        api.add_route(METADATA_PARSER_CALLBACK_PATH, self.metadata_callback_res)
+        api.add_route(UPLOADER_REQUEST_PATH, self.uploader_res)
+
 
 
 def get_app():
-    """
-    To be used by WSGI server.
-    """
+    """To be used by WSGI server."""
     configure_logging(logging.INFO)
     config = DasConfig.get_config()
 
@@ -62,7 +73,4 @@ def get_app():
     auth_middleware = JwtMiddleware()
     auth_middleware.initialize(config.verification_key_url)
 
-    application = falcon.API(middleware=auth_middleware)
-    add_resources_to_routes(application, requests_store, executor, config)
-
-    return application
+    return DasApi(requests_store, executor, config, auth_middleware).get_falcon_api()

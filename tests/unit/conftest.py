@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock
 from urllib.parse import urljoin
 
-import falcon
 import pytest
 
 import data_acquisition.app
@@ -35,12 +34,11 @@ def mock_req_store():
     return MagicMock()
 
 
+@pytest.fixture
+def das_api(mock_req_store, mock_executor, das_config):
+    return data_acquisition.app.DasApi(mock_req_store, mock_executor, das_config)
+
+
 @pytest.fixture(scope='function')
-def falcon_api(das_config, mock_executor, mock_req_store):
-    api = falcon.API()
-    data_acquisition.app.add_resources_to_routes(
-        api,
-        mock_req_store,
-        mock_executor,
-        das_config)
-    return api
+def falcon_api(das_api):
+    return das_api.get_falcon_api()

@@ -9,7 +9,7 @@ from data_acquisition.acquisition_request import AcquisitionRequest, RequestNotF
 from data_acquisition.consts import (ACQUISITION_PATH, DOWNLOAD_CALLBACK_PATH,
                                      METADATA_PARSER_CALLBACK_PATH, GET_REQUEST_PATH)
 from data_acquisition.resources import (get_download_callback_url, get_metadata_callback_url,
-                                        AcquisitionRequestsResource)
+                                        AcquisitionResource)
 from tests.consts import (TEST_DOWNLOAD_REQUEST, TEST_DOWNLOAD_CALLBACK, TEST_ACQUISITION_REQ,
                           TEST_ACQUISITION_REQ_JSON, TEST_ORG_UUID, FAKE_PERMISSION_URL)
 from tests.falcon_testing import FalconApiTestClient
@@ -25,7 +25,7 @@ def test_client(falcon_api):
 
 @pytest.fixture(scope='function')
 def acquisition_requests_resource(das_config, mock_executor, mock_req_store, fake_time):
-    return AcquisitionRequestsResource(mock_req_store, mock_executor, das_config)
+    return AcquisitionResource(mock_req_store, mock_executor, das_config)
 
 
 @pytest.fixture(scope='function')
