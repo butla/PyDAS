@@ -40,14 +40,9 @@ class DasApi:
         self.metadata_callback_res = MetadataCallbackResource(requests_store, config)
         self.uploader_res = UploaderResource(requests_store, executor, config)
 
-    def get_falcon_api(self):
-        """
-        Returns:
-            `falcon.API`: A fully configured Falcon application.
-        """
         api = falcon.API(middleware=self.middleware)
         self._add_routes(api)
-        return api
+        self.api = api
 
     def _add_routes(self, api):
         api.add_route(ACQUISITION_PATH, self.acquisition_res)
@@ -55,7 +50,6 @@ class DasApi:
         api.add_route(DOWNLOAD_CALLBACK_PATH, self.download_callback_res)
         api.add_route(METADATA_PARSER_CALLBACK_PATH, self.metadata_callback_res)
         api.add_route(UPLOADER_REQUEST_PATH, self.uploader_res)
-
 
 
 def get_app():
@@ -73,4 +67,4 @@ def get_app():
     auth_middleware = JwtMiddleware()
     auth_middleware.initialize(config.verification_key_url)
 
-    return DasApi(requests_store, executor, config, auth_middleware).get_falcon_api()
+    return DasApi(requests_store, executor, config, auth_middleware).api

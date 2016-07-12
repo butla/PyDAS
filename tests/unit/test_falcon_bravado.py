@@ -19,7 +19,7 @@ def test_acquisition_request_with_swagger(das_api):
         swagger_spec = yaml.load(spec_file)
 
     client = SwaggerClient.from_spec(swagger_spec,
-                                     http_client=FalconTestHttpClient(das_api.get_falcon_api()))
+                                     http_client=FalconTestHttpClient(das_api.api))
 
     SwaggerAcquisitionRequest = client.get_model('AcquisitionRequest')
     request_body = SwaggerAcquisitionRequest(**TEST_DOWNLOAD_REQUEST)

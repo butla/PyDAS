@@ -41,4 +41,4 @@ def das_api(mock_req_store, mock_executor, das_config):
 
 @pytest.fixture(scope='function')
 def falcon_api(das_api):
-    return das_api.get_falcon_api()
+    return das_api.api

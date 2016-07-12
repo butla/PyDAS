@@ -197,7 +197,6 @@ class AcquisitionResource(DasResource):
             requested_orgs = [requested_orgs]
         self._org_checker.validate_access(req.auth, requested_orgs)
 
-
         acquisition_request_lists = [self._req_store.get_for_org(org) for org in requested_orgs]
         acquisition_requests = itertools.chain(*acquisition_request_lists)
         resp.body = json.dumps([acq_req.__dict__ for acq_req in acquisition_requests])
