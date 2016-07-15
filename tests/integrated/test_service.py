@@ -14,19 +14,13 @@ from tests.utils import dict_is_part_of
 
 
 def test_acquisition_request(das, das_client, req_store_real, downloader_imposter):
-    # arrange
-    SwaggerAcquisitionRequest = das_client.get_model('AcquisitionRequest')
-    request_body = SwaggerAcquisitionRequest(**TEST_DOWNLOAD_REQUEST)
-
-    # act
     resp_object = das_client.rest.submitAcquisitionRequest(
-        body=request_body,
+        body=TEST_DOWNLOAD_REQUEST,
         _request_options={
             'url': das.url,
             'headers': {'authorization': TEST_AUTH_HEADER}
         }).result()
 
-    # assert
     assert req_store_real.get(resp_object.id).state == 'VALIDATED'
 
     request_to_imposter = downloader_imposter.wait_for_requests()[0]

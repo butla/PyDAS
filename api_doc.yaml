@@ -26,6 +26,24 @@ paths:
           description: Acquisition request submitted
           schema:
             $ref: '#/definitions/SubmittedAcquisitionRequest'
+        '400':
+          description: Submitted request is invalid
+
+  /rest/das/requests/{req_id}:
+    get:
+      operationId: getRequest
+      description: Retrieve a submitted acquisition request and see it's state.
+      parameters:
+        - name: req_id
+          in: path
+          required: true
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Request found.
+          schema:
+            $ref: '#/definitions/SubmittedAcquisitionRequest'
 
 definitions:
   AcquisitionRequest:

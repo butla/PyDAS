@@ -1,17 +1,23 @@
 import copy
 import json
+import os
 from unittest.mock import MagicMock, call
 
+from bravado.client import SwaggerClient
+import bravado.exception
+from bravado_falcon import FalconHttpClient
 import falcon
 import pytest
 import pytest_falcon.plugin
 import responses
+import yaml
 
 from data_acquisition.acquisition_request import AcquisitionRequest, RequestNotFoundError
 from data_acquisition.consts import (ACQUISITION_PATH, DOWNLOAD_CALLBACK_PATH,
                                      METADATA_PARSER_CALLBACK_PATH, GET_REQUEST_PATH)
 from data_acquisition.resources import (get_download_callback_url, get_metadata_callback_url,
                                         AcquisitionResource)
+import tests
 from tests.consts import (TEST_DOWNLOAD_REQUEST, TEST_DOWNLOAD_CALLBACK, TEST_ACQUISITION_REQ,
                           TEST_ACQUISITION_REQ_JSON)
 
@@ -25,6 +31,26 @@ def client(falcon_api):
     client.post = (lambda path, data, post=client.post:
                    post(path, json.dumps(data), headers={'Content-Type': 'application/json'}))
     return client
+
+
+@pytest.fixture(scope='session')
+def swagger_spec():
+    spec_file_path = os.path.join(tests.__path__[0], '../api_doc.yaml')
+    with open(spec_file_path) as spec_file:
+        return yaml.load(spec_file)
+
+
+@pytest.fixture(scope='function')
+def client_no_req_validation(falcon_api, swagger_spec):
+    return SwaggerClient.from_spec(swagger_spec,
+                                   http_client=FalconHttpClient(falcon_api),
+                                   config={'validate_requests': False})
+
+
+@pytest.fixture(scope='function')
+def client_swagger(falcon_api, swagger_spec):
+    return SwaggerClient.from_spec(swagger_spec,
+                                   http_client=FalconHttpClient(falcon_api))
 
 
 @pytest.fixture(scope='function')
@@ -81,12 +107,12 @@ def test_processing_acquisition_request_for_hdfs(acquisition_requests_resource, 
     mock_req_store.put.assert_called_with(proper_saved_request)
 
 
-def test_acquisition_bad_request(client):
+def test_acquisition_bad_request(client_no_req_validation):
     broken_request = dict(TEST_DOWNLOAD_REQUEST)
     del broken_request['category']
 
-    response = client.post(ACQUISITION_PATH, broken_request)
-    assert response.status == falcon.HTTP_400
+    with pytest.raises(bravado.exception.HTTPError):
+        client_no_req_validation.rest.submitAcquisitionRequest(body=broken_request).result()
 
 
 def test_downloader_callback_failed(client, fake_time, mock_req_store, req_store_get):
@@ -117,13 +143,10 @@ def test_metadata_callback_failed(client, fake_time, mock_req_store, req_store_g
     mock_req_store.put.assert_called_with(updated_request)
 
 
-def test_get_request(das_api, client, req_store_get):
+def test_get_request(das_api, client_swagger, req_store_get):
     das_api.request_management_res._org_checker = MagicMock()
-
-    response = client.get(GET_REQUEST_PATH.format(req_id=TEST_ACQUISITION_REQ.id))
-
-    assert response.status == falcon.HTTP_200
-    assert AcquisitionRequest(**response.json) == TEST_ACQUISITION_REQ
+    acquisition_request = client_swagger.rest.getRequest(req_id=TEST_ACQUISITION_REQ.id).result()
+    assert AcquisitionRequest(**acquisition_request.__dict__) == TEST_ACQUISITION_REQ
 
 
 def test_get_request_not_found(client, mock_req_store):
