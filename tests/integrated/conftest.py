@@ -220,9 +220,12 @@ def das(das_session,
 
 
 @pytest.fixture(scope='session')
-def das_client(das_session):
+def swagger_spec(das_session):
     spec_file_path = os.path.join(tests.__path__[0], '../api_doc.yaml')
     with open(spec_file_path) as spec_file:
-        swagger_spec = yaml.load(spec_file)
+        return yaml.load(spec_file)
 
-    return SwaggerClient.from_spec(swagger_spec, origin_url=das_session.url)
+
+@pytest.fixture
+def das_client(das, swagger_spec):
+    return SwaggerClient.from_spec(swagger_spec, origin_url=das.url)

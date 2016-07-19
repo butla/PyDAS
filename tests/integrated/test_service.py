@@ -13,16 +13,12 @@ from tests.consts import (TEST_AUTH_HEADER, TEST_DOWNLOAD_REQUEST, TEST_ACQUISIT
 from tests.utils import dict_is_part_of
 
 
-def test_acquisition_request(das, das_client, req_store_real, downloader_imposter):
+def test_acquisition_request(das_client, req_store_real, downloader_imposter):
     resp_object = das_client.rest.submitAcquisitionRequest(
         body=TEST_DOWNLOAD_REQUEST,
-        _request_options={
-            'url': das.url,
-            'headers': {'authorization': TEST_AUTH_HEADER}
-        }).result()
+        _request_options={'headers': {'authorization': TEST_AUTH_HEADER}}).result()
 
     assert req_store_real.get(resp_object.id).state == 'VALIDATED'
-
     request_to_imposter = downloader_imposter.wait_for_requests()[0]
     assert json.loads(request_to_imposter.body) == {
         'source': TEST_DOWNLOAD_REQUEST['source'],
