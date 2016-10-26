@@ -1,5 +1,5 @@
-cffi==1.7.0
-cryptography==1.4
+cffi==1.8.3
+cryptography==1.5.2
 idna==2.1
 pyasn1==0.1.9
-pycparser==2.14
+pycparser==2.16
